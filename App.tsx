@@ -11,6 +11,7 @@ import Finances from './components/Finances';
 import Settings from './components/Settings';
 import Auth from './components/Auth';
 import GetCode from './components/GetCode';
+import AdminPanel from './components/AdminPanel';
 import { View, Patient, Appointment, FinancialRecord, AppSettings } from './types';
 import { db } from './db/storage';
 
@@ -100,6 +101,8 @@ const App: React.FC = () => {
         return <Secretary patients={patients} appointments={appointments} doctorName={settings.doctorName} />;
       case View.SETTINGS:
         return <Settings settings={settings} onUpdate={setSettings} onLogout={handleLogout} />;
+      case View.ADMIN:
+        return <AdminPanel />;
       case View.GET_CODE:
         return <GetCode />;
       default:

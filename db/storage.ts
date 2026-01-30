@@ -11,26 +11,39 @@ export const db = {
     const normalizedEmail = email.toLowerCase().trim();
     if (users.find((u: any) => u.email === normalizedEmail)) return false;
     
-    users.push({ email: normalizedEmail, pass });
+    users.push({ email: normalizedEmail, pass, blocked: false });
     localStorage.setItem(AUTH_KEY, JSON.stringify(users));
     return true;
   },
 
-  login: (email: string, pass: string): boolean => {
+  login: (email: string, pass: string): { success: boolean, error?: string } => {
+    // Admin Hardcoded Bypass
+    if (email === 'KARONY RUBIA' && pass === '102021') {
+      localStorage.setItem(CURRENT_USER_KEY, 'KARONY RUBIA');
+      const users = JSON.parse(localStorage.getItem(AUTH_KEY) || '[]');
+      if (!users.find((u: any) => u.email === 'KARONY RUBIA')) {
+        users.push({ email: 'KARONY RUBIA', pass: '102021', blocked: false });
+        localStorage.setItem(AUTH_KEY, JSON.stringify(users));
+      }
+      return { success: true };
+    }
+
     const users = JSON.parse(localStorage.getItem(AUTH_KEY) || '[]');
     const normalizedEmail = email.toLowerCase().trim();
     const user = users.find((u: any) => u.email === normalizedEmail && u.pass === pass);
     
     if (user) {
+      if (user.blocked) {
+        return { success: false, error: 'Sua conta foi suspensa pela administração Alpha. Entre em contato com o suporte.' };
+      }
       localStorage.setItem(CURRENT_USER_KEY, normalizedEmail);
-      return true;
+      return { success: true };
     }
-    return false;
+    return { success: false, error: 'E-mail ou senha incorretos. Verifique suas credenciais.' };
   },
 
   logout: () => {
     localStorage.removeItem(CURRENT_USER_KEY);
-    // Força o reload para limpar estados em memória
     window.location.reload();
   },
 
@@ -38,12 +51,42 @@ export const db = {
     return localStorage.getItem(CURRENT_USER_KEY);
   },
 
-  // --- NAMESPACING (SEGURANÇA DE DADOS) ---
-  // Esta função gera chaves únicas baseadas no email logado
+  isAdmin: (): boolean => {
+    return db.getCurrentUser() === 'KARONY RUBIA';
+  },
+
+  // --- ADMIN METHODS ---
+  getAllUsers: () => {
+    return JSON.parse(localStorage.getItem(AUTH_KEY) || '[]');
+  },
+
+  updateUserPassword: (email: string, newPass: string): boolean => {
+    const users = JSON.parse(localStorage.getItem(AUTH_KEY) || '[]');
+    const index = users.findIndex((u: any) => u.email === email);
+    if (index !== -1) {
+      users[index].pass = newPass;
+      localStorage.setItem(AUTH_KEY, JSON.stringify(users));
+      return true;
+    }
+    return false;
+  },
+
+  toggleUserBlock: (email: string): boolean => {
+    if (email === 'KARONY RUBIA') return false; // Não pode bloquear a si mesma
+    const users = JSON.parse(localStorage.getItem(AUTH_KEY) || '[]');
+    const index = users.findIndex((u: any) => u.email === email);
+    if (index !== -1) {
+      users[index].blocked = !users[index].blocked;
+      localStorage.setItem(AUTH_KEY, JSON.stringify(users));
+      return true;
+    }
+    return false;
+  },
+
+  // --- NAMESPACING ---
   getUserKey: (subKey: string) => {
     const email = db.getCurrentUser();
     if (!email) return `alpha_guest_${subKey}`;
-    // Substitui caracteres especiais do email para ser uma chave segura
     const safeEmail = email.replace(/[^a-zA-Z0-9]/g, '_');
     return `alpha_v2_${safeEmail}_${subKey}`;
   },
@@ -80,8 +123,8 @@ export const db = {
     const data = localStorage.getItem(db.getUserKey('settings'));
     const defaults: AppSettings = {
       clinicName: 'Alpha Wolves',
-      doctorName: 'Profissional Alpha',
-      professionalRole: 'Especialista',
+      doctorName: db.getCurrentUser() === 'KARONY RUBIA' ? 'KARONY RUBIA' : 'Profissional Alpha',
+      professionalRole: db.getCurrentUser() === 'KARONY RUBIA' ? 'Administradora Master' : 'Especialista',
       whatsapp: '',
       instagram: '',
       profileImage: 'https://picsum.photos/id/64/80/80',
@@ -94,11 +137,9 @@ export const db = {
     localStorage.setItem(db.getUserKey('settings'), JSON.stringify(settings));
   },
 
-  // --- FERRAMENTAS ---
   exportDB: () => {
     const user = db.getCurrentUser();
     if (!user) return;
-
     const fullDB = {
       user: user,
       patients: db.getPatients(),
@@ -115,24 +156,18 @@ export const db = {
     a.click();
   },
 
-  // Fix: Added missing importDB method to restore the database from a JSON backup file.
   importDB: (jsonStr: string): boolean => {
     try {
       const data = JSON.parse(jsonStr);
       if (!data || typeof data !== 'object') return false;
-      
       const user = db.getCurrentUser();
       if (!user) return false;
-
-      // Import data into current user session using namespaced keys
       if (data.patients) localStorage.setItem(db.getUserKey('patients'), JSON.stringify(data.patients));
       if (data.appointments) localStorage.setItem(db.getUserKey('appointments'), JSON.stringify(data.appointments));
       if (data.finances) localStorage.setItem(db.getUserKey('finances'), JSON.stringify(data.finances));
       if (data.settings) localStorage.setItem(db.getUserKey('settings'), JSON.stringify(data.settings));
-      
       return true;
     } catch (e) {
-      console.error('Import error:', e);
       return false;
     }
   }

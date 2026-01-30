@@ -2,6 +2,7 @@
 import React from 'react';
 import { View, AppSettings } from '../types';
 import { ICONS } from '../constants';
+import { db } from '../db/storage';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -11,6 +12,8 @@ interface LayoutProps {
 }
 
 const Layout: React.FC<LayoutProps> = ({ children, currentView, onViewChange, settings }) => {
+  const isAdmin = db.isAdmin();
+
   const navItems = [
     { id: View.DASHBOARD, label: 'Início', desktopLabel: 'Visão Geral', icon: ICONS.Dashboard },
     { id: View.PATIENTS, label: 'Pacientes', desktopLabel: 'Pacientes', icon: ICONS.Patients },
@@ -72,9 +75,15 @@ const Layout: React.FC<LayoutProps> = ({ children, currentView, onViewChange, se
           </div>
           <div className="space-y-1">
             <button onClick={() => onViewChange(View.SETTINGS)} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all ${currentView === View.SETTINGS ? 'bg-white text-blue-900' : 'text-blue-200 hover:text-white hover:bg-white/5'}`}>
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /></svg>
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924-1.756-3.35 0a1.724 1.724 0 00-2.573-1.066-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /></svg>
               <span className="text-sm">Ajustes</span>
             </button>
+            {isAdmin && (
+              <button onClick={() => onViewChange(View.ADMIN)} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all ${currentView === View.ADMIN ? 'bg-cyan-500 text-white shadow-lg' : 'text-cyan-200 hover:text-white hover:bg-white/5'}`}>
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                <span className="text-sm font-black uppercase tracking-widest text-[10px]">Master Console</span>
+              </button>
+            )}
           </div>
         </nav>
 
@@ -83,7 +92,7 @@ const Layout: React.FC<LayoutProps> = ({ children, currentView, onViewChange, se
             <img src={settings.profileImage} className="rounded-xl w-10 h-10 object-cover border-2 border-white/20" alt="Perfil" />
             <div className="min-w-0">
               <p className="text-sm font-bold truncate text-white">{settings.doctorName}</p>
-              <p className="text-[10px] text-blue-200 truncate uppercase tracking-wider">Alpha Wolf</p>
+              <p className="text-[10px] text-blue-200 truncate uppercase tracking-wider">{isAdmin ? 'Master Admin' : 'Alpha Wolf'}</p>
             </div>
           </div>
         </div>
@@ -131,6 +140,17 @@ const Layout: React.FC<LayoutProps> = ({ children, currentView, onViewChange, se
             );
           })}
         </nav>
+
+        {/* Admin Secret Footer Trigger - MADE MORE VISIBLE */}
+        <footer className="h-10 bg-slate-100 border-t flex items-center justify-center px-4 no-print shrink-0">
+           <button 
+             onClick={() => onViewChange(View.ADMIN)}
+             className={`flex items-center gap-2 text-[9px] font-black uppercase tracking-[0.4em] transition-all ${isAdmin ? 'text-cyan-600 animate-pulse' : 'text-slate-300 hover:text-blue-900'}`}
+           >
+             <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+             Painel Alpha Master • Acesso Exclusivo Creator
+           </button>
+        </footer>
       </div>
     </div>
   );

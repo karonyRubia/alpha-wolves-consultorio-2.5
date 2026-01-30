@@ -7,7 +7,8 @@ export enum View {
   SECRETARY = 'SECRETARY',
   SETTINGS = 'SETTINGS',
   PRONTUARIOS = 'PRONTUARIOS',
-  GET_CODE = 'GET_CODE'
+  GET_CODE = 'GET_CODE',
+  ADMIN = 'ADMIN'
 }
 
 export interface HistoryEntry {
@@ -34,7 +35,7 @@ export interface Patient {
   notes: string;
   lastVisit?: string;
   history: HistoryEntry[];
-  files?: PatientFile[]; // Novo campo para anexos
+  files?: PatientFile[];
 }
 
 export interface Appointment {

@@ -18,13 +18,13 @@ const Auth: React.FC<AuthProps> = ({ onLoginSuccess }) => {
     setError('');
     setIsLoading(true);
 
-    // Pequeno delay para simular processamento e melhorar UX
     setTimeout(() => {
       if (isLogin) {
-        if (db.login(email, password)) {
+        const result = db.login(email, password);
+        if (result.success) {
           onLoginSuccess();
         } else {
-          setError('E-mail ou senha incorretos. Verifique suas credenciais.');
+          setError(result.error || 'Erro ao processar login.');
           setIsLoading(false);
         }
       } else {
@@ -42,11 +42,10 @@ const Auth: React.FC<AuthProps> = ({ onLoginSuccess }) => {
 
   return (
     <div className="min-h-screen flex items-center justify-center alpha-gradient p-4 relative overflow-hidden">
-      {/* Elementos decorativos de fundo */}
       <div className="absolute top-0 left-0 w-96 h-96 bg-white/5 rounded-full -translate-x-1/2 -translate-y-1/2 blur-3xl"></div>
       <div className="absolute bottom-0 right-0 w-96 h-96 bg-cyan-400/10 rounded-full translate-x-1/2 translate-y-1/2 blur-3xl"></div>
 
-      <div className="bg-white w-full max-w-[420px] rounded-[3rem] shadow-2xl overflow-hidden relative z-10 animate-in fade-in zoom-in duration-700">
+      <div className="bg-white w-full max-w-[420px] rounded-[3rem] shadow-2xl overflow-hidden relative z-10 animate-in fade-in zoom-in duration-700 border border-white/20">
         <div className="p-10 text-center">
           <div className="w-20 h-20 bg-blue-50 rounded-[2rem] flex items-center justify-center mx-auto text-blue-900 shadow-inner mb-6 ring-8 ring-blue-50/50">
             <svg className="w-12 h-12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -65,12 +64,12 @@ const Auth: React.FC<AuthProps> = ({ onLoginSuccess }) => {
         <div className="px-10 pb-12">
           <form onSubmit={handleSubmit} className="space-y-5">
             <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">E-mail de Acesso</label>
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Usuário ou E-mail</label>
               <div className="relative">
                 <input 
-                  type="email" required
+                  type="text" required
                   className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-4 pl-12 pr-4 text-sm font-bold focus:ring-4 focus:ring-blue-900/5 focus:border-blue-900 outline-none transition-all placeholder:text-slate-300"
-                  placeholder="seu@email.com"
+                  placeholder="Seu usuário de acesso"
                   value={email}
                   onChange={e => setEmail(e.target.value)}
                 />
@@ -79,7 +78,7 @@ const Auth: React.FC<AuthProps> = ({ onLoginSuccess }) => {
             </div>
 
             <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Senha Privada</label>
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Senha de Acesso</label>
               <div className="relative">
                 <input 
                   type="password" required
@@ -93,7 +92,7 @@ const Auth: React.FC<AuthProps> = ({ onLoginSuccess }) => {
             </div>
 
             {error && (
-              <div className="bg-rose-50 border border-rose-100 p-3 rounded-xl">
+              <div className="bg-rose-50 border border-rose-100 p-3 rounded-xl transition-all animate-pulse">
                 <p className="text-[11px] text-rose-500 font-bold text-center">{error}</p>
               </div>
             )}
@@ -106,7 +105,7 @@ const Auth: React.FC<AuthProps> = ({ onLoginSuccess }) => {
               {isLoading ? (
                 <>
                   <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                  Processando...
+                  Validando Credenciais...
                 </>
               ) : (
                 isLogin ? 'Entrar no Sistema Alpha' : 'Criar minha Conta Alpha'
@@ -114,7 +113,7 @@ const Auth: React.FC<AuthProps> = ({ onLoginSuccess }) => {
             </button>
           </form>
 
-          <div className="mt-8 pt-6 border-t border-slate-50 text-center">
+          <div className="mt-8 pt-6 border-t border-slate-50 flex flex-col gap-4 items-center">
             <p className="text-xs text-slate-400 font-bold">
               {isLogin ? 'Novo no Alpha Wolves?' : 'Já possui cadastro?'}
               <button 
@@ -128,7 +127,6 @@ const Auth: React.FC<AuthProps> = ({ onLoginSuccess }) => {
         </div>
       </div>
       
-      {/* Rodapé da tela de login */}
       <div className="absolute bottom-8 left-0 right-0 text-center text-white/40 text-[10px] font-bold uppercase tracking-[0.2em]">
         Alpha Wolves Clinical Solution v2.0 • Security by Alpha Design
       </div>
