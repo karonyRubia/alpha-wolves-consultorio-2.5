@@ -6,7 +6,9 @@ const CURRENT_USER_KEY = 'alpha_current_session';
 const RECOVERY_KEY = 'alpha_recovery_requests';
 const GLOBAL_CONFIG_KEY = 'alpha_global_master_config';
 const ACCESS_LOGS_KEY = 'alpha_global_logs';
-const REMOTE_SYNC_URL = 'https://api.restful-api.dev/objects'; // Endpoint de demonstração para relay global
+
+// URL de Relay para sincronização entre diferentes aparelhos/redes
+const CLOUD_RELAY_URL = 'https://api.restful-api.dev/objects'; 
 
 const notifyUpdate = (type: 'users' | 'config' | 'data' | 'logs') => {
   window.dispatchEvent(new Event(`alpha_${type}_updated`));
@@ -16,52 +18,53 @@ const notifyUpdate = (type: 'users' | 'config' | 'data' | 'logs') => {
 const getDeviceDetails = () => {
   const ua = navigator.userAgent;
   let device = "Desktop";
-  if (/Android/i.test(ua)) device = "Android Device";
-  else if (/iPhone|iPad/i.test(ua)) device = "iOS Device";
+  if (/Android/i.test(ua)) device = "Android";
+  else if (/iPhone|iPad/i.test(ua)) device = "iOS";
   
   return {
     platform: device,
-    browser: navigator.vendor || 'Generic Browser',
+    browser: navigator.vendor || 'Navegador',
     resolution: `${window.screen.width}x${window.screen.height}`,
-    language: navigator.language
+    location: "Brasil (Detectado via Rede)"
   };
 };
 
 export const db = {
-  // --- SINCRONIZAÇÃO EM NUVEM ALPHA (PARA VISIBILIDADE GLOBAL) ---
-  syncToCloud: async (log: AccessLog) => {
+  // --- SINCRONIZAÇÃO GLOBAL ALPHA (PARA KARONY RUBIA) ---
+  
+  broadcastToCloud: async (log: AccessLog) => {
     try {
-      // Este método simula o envio do log para um servidor central que você controla
-      // Permite que a Karony veja acessos de outros IPs e aparelhos
-      await fetch(REMOTE_SYNC_URL, {
+      // Envia o log para a nuvem para que a Karony veja em qualquer lugar
+      await fetch(CLOUD_RELAY_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name: `AlphaAccess_${log.email}`,
+          name: `AlphaAccess_${log.email}_${Date.now()}`,
           data: {
             ...log,
             details: getDeviceDetails(),
-            source: window.location.hostname
+            origin: window.location.href
           }
         })
       });
     } catch (e) {
-      console.warn("Alpha Cloud Sync: Modo offline ou firewall detectado.");
+      console.warn("Alpha Sync Offline");
     }
   },
 
-  getRemoteLogs: async (): Promise<AccessLog[]> => {
+  getGlobalNationalLogs: async (): Promise<AccessLog[]> => {
     try {
-      const response = await fetch(REMOTE_SYNC_URL);
-      const data = await response.json();
-      // Filtra e formata os dados vindos da nuvem (outros aparelhos)
-      return data
-        .filter((obj: any) => obj.name?.startsWith('AlphaAccess_'))
-        .map((obj: any) => ({
-          ...obj.data,
-          id: obj.id,
+      const response = await fetch(CLOUD_RELAY_URL);
+      const items = await response.json();
+      // Filtra apenas dados do ecossistema Alpha Wolves
+      return items
+        .filter((item: any) => item.name && item.name.startsWith('AlphaAccess_'))
+        .map((item: any) => ({
+          ...item.data,
+          id: item.id,
           isRemote: true
-        }));
+        }))
+        .sort((a: any, b: any) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
     } catch {
       return [];
     }
@@ -70,22 +73,22 @@ export const db = {
   // --- REGISTRO DE LOGS ---
   recordAccessLog: (email: string, action: AccessLog['action'], status: AccessLog['status'] = 'SUCCESS') => {
     try {
-      const logs: AccessLog[] = JSON.parse(localStorage.getItem(ACCESS_LOGS_KEY) || '[]');
       const details = getDeviceDetails();
       const newLog: AccessLog = {
-        id: `log_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+        id: `log_${Date.now()}`,
         email: email.toLowerCase().trim(),
         timestamp: new Date().toISOString(),
-        device: `${details.platform} (${details.browser})`,
+        device: `${details.platform} - ${details.resolution}`,
         action,
         status
       };
       
-      const updatedLogs = [newLog, ...logs].slice(0, 100);
-      localStorage.setItem(ACCESS_LOGS_KEY, JSON.stringify(updatedLogs));
+      // Salva localmente
+      const localLogs = JSON.parse(localStorage.getItem(ACCESS_LOGS_KEY) || '[]');
+      localStorage.setItem(ACCESS_LOGS_KEY, JSON.stringify([newLog, ...localLogs].slice(0, 50)));
       
-      // DISPARA PARA A NUVEM PARA A KARONY VER EM OUTRO PC/CELULAR
-      db.syncToCloud(newLog);
+      // DISPARA PARA A NUVEM (Essencial para visibilidade em outros aparelhos)
+      db.broadcastToCloud(newLog);
       
       notifyUpdate('logs');
     } catch (e) {
@@ -99,7 +102,7 @@ export const db = {
     } catch { return []; }
   },
 
-  // --- CONFIGURAÇÕES ---
+  // --- CONFIGURAÇÕES GLOBAIS ---
   getGlobalConfig: (): GlobalConfig => {
     const data = localStorage.getItem(GLOBAL_CONFIG_KEY);
     return data ? JSON.parse(data) : {
@@ -141,7 +144,10 @@ export const db = {
       lastActive: new Date().toISOString()
     });
     localStorage.setItem(AUTH_KEY, JSON.stringify(users));
-    db.recordAccessLog(normalizedEmail, 'LOGIN', 'SUCCESS');
+    
+    // Notifica que um novo profissional se cadastrou (aparecerá no radar da Karony)
+    db.recordAccessLog(normalizedEmail, 'DATA_UPDATE', 'SUCCESS');
+    
     notifyUpdate('users');
     return true;
   },
@@ -149,6 +155,7 @@ export const db = {
   login: (email: string, pass: string): { success: boolean, error?: string } => {
     const normalizedEmail = email.toLowerCase().trim();
 
+    // Senha Mestra da Karony
     if (email === 'KARONY RUBIA' && pass === '102021') {
       localStorage.setItem(CURRENT_USER_KEY, 'KARONY RUBIA');
       db.recordAccessLog('KARONY RUBIA', 'LOGIN', 'SUCCESS');
@@ -160,7 +167,7 @@ export const db = {
     if (user) {
       if (user.blocked) {
         db.recordAccessLog(normalizedEmail, 'LOGIN', 'ERROR');
-        return { success: false, error: 'Acesso bloqueado.' };
+        return { success: false, error: 'Acesso bloqueado pelo administrador.' };
       }
       localStorage.setItem(CURRENT_USER_KEY, normalizedEmail);
       db.recordAccessLog(normalizedEmail, 'LOGIN', 'SUCCESS');
@@ -214,16 +221,26 @@ export const db = {
   },
   saveSettings: (s: AppSettings) => localStorage.setItem(db.getUserKey('settings'), JSON.stringify(s)),
 
-  updateUserPassword: (email: string, newPass: string): boolean => {
-    const users = db.getAllUsers();
-    const index = users.findIndex((u: any) => u.email === email);
-    if (index !== -1) {
-      users[index].pass = newPass;
-      localStorage.setItem(AUTH_KEY, JSON.stringify(users));
-      notifyUpdate('users');
-      return true;
+  exportDB: () => {
+    const data: any = {};
+    for (let i = 0; i < localStorage.length; i++){
+      const k = localStorage.key(i);
+      if(k && k.startsWith('alpha_')) data[k] = localStorage.getItem(k);
     }
-    return false;
+    const blob = new Blob([JSON.stringify(data)], {type: 'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `alpha_backup_${new Date().toLocaleDateString()}.json`;
+    a.click();
+  },
+
+  importDB: (jsonStr: string): boolean => {
+    try {
+      const data = JSON.parse(jsonStr);
+      Object.keys(data).forEach(k => localStorage.setItem(k, data[k]));
+      return true;
+    } catch { return false; }
   },
 
   toggleUserBlock: (email: string): boolean => {
@@ -244,52 +261,6 @@ export const db = {
     requests.push({ email, timestamp: new Date().toISOString() });
     localStorage.setItem(RECOVERY_KEY, JSON.stringify(requests));
     notifyUpdate('users');
-  },
-
-  getRecoveryRequests: () => JSON.parse(localStorage.getItem(RECOVERY_KEY) || '[]'),
-
-  // Fix: Adding exportDB method to handle data backup for the settings view
-  exportDB: () => {
-    try {
-      const data: Record<string, string> = {};
-      for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-        if (key && key.startsWith('alpha_')) {
-          data[key] = localStorage.getItem(key) || '';
-        }
-      }
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `alpha_backup_${new Date().toISOString().split('T')[0]}.json`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-    } catch (e) {
-      console.error("Alpha Export Error:", e);
-    }
-  },
-
-  // Fix: Adding importDB method to restore data from backup for the settings view
-  importDB: (jsonStr: string): boolean => {
-    try {
-      const data = JSON.parse(jsonStr);
-      if (typeof data !== 'object' || data === null) return false;
-      const keys = Object.keys(data);
-      if (keys.length === 0) return false;
-
-      keys.forEach(key => {
-        if (key.startsWith('alpha_')) {
-          localStorage.setItem(key, data[key]);
-        }
-      });
-      return true;
-    } catch (e) {
-      console.error("Alpha Import Error:", e);
-      return false;
-    }
   },
 
   getUserDataAudit: (email: string) => {
