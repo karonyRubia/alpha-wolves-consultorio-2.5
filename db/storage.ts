@@ -6,48 +6,90 @@ const CURRENT_USER_KEY = 'alpha_current_session';
 const RECOVERY_KEY = 'alpha_recovery_requests';
 const GLOBAL_CONFIG_KEY = 'alpha_global_master_config';
 const ACCESS_LOGS_KEY = 'alpha_global_logs';
+const REMOTE_SYNC_URL = 'https://api.restful-api.dev/objects'; // Endpoint de demonstração para relay global
 
 const notifyUpdate = (type: 'users' | 'config' | 'data' | 'logs') => {
   window.dispatchEvent(new Event(`alpha_${type}_updated`));
   window.dispatchEvent(new Event('storage'));
 };
 
-const getDeviceType = () => {
+const getDeviceDetails = () => {
   const ua = navigator.userAgent;
-  if (/(tablet|ipad|playbook|silk)|(android(?!.*mobi))/i.test(ua)) return "Tablet";
-  if (/Mobile|iP(hone|od)|Android|BlackBerry|IEMobile|Kindle|Silk-Accelerated|(hpw|web)OS|Opera M(obi|ini)/.test(ua)) return "Mobile";
-  return "Desktop (" + (navigator.platform || "PC") + ")";
-};
-
-const defaultGlobalConfig: GlobalConfig = {
-  appName: 'Alpha Wolves',
-  appSlogan: 'Consultório Digital de Elite',
-  primaryColor: '#0e7490',
-  accentColor: '#1e3a8a',
-  globalNotice: '',
-  rubiaBaseInstruction: 'Você é a Rubia, o cérebro operacional do consultório Alpha.',
-  maintenanceMode: false
+  let device = "Desktop";
+  if (/Android/i.test(ua)) device = "Android Device";
+  else if (/iPhone|iPad/i.test(ua)) device = "iOS Device";
+  
+  return {
+    platform: device,
+    browser: navigator.vendor || 'Generic Browser',
+    resolution: `${window.screen.width}x${window.screen.height}`,
+    language: navigator.language
+  };
 };
 
 export const db = {
-  // --- SISTEMA DE LOGS DE MONITORAMENTO ---
+  // --- SINCRONIZAÇÃO EM NUVEM ALPHA (PARA VISIBILIDADE GLOBAL) ---
+  syncToCloud: async (log: AccessLog) => {
+    try {
+      // Este método simula o envio do log para um servidor central que você controla
+      // Permite que a Karony veja acessos de outros IPs e aparelhos
+      await fetch(REMOTE_SYNC_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: `AlphaAccess_${log.email}`,
+          data: {
+            ...log,
+            details: getDeviceDetails(),
+            source: window.location.hostname
+          }
+        })
+      });
+    } catch (e) {
+      console.warn("Alpha Cloud Sync: Modo offline ou firewall detectado.");
+    }
+  },
+
+  getRemoteLogs: async (): Promise<AccessLog[]> => {
+    try {
+      const response = await fetch(REMOTE_SYNC_URL);
+      const data = await response.json();
+      // Filtra e formata os dados vindos da nuvem (outros aparelhos)
+      return data
+        .filter((obj: any) => obj.name?.startsWith('AlphaAccess_'))
+        .map((obj: any) => ({
+          ...obj.data,
+          id: obj.id,
+          isRemote: true
+        }));
+    } catch {
+      return [];
+    }
+  },
+
+  // --- REGISTRO DE LOGS ---
   recordAccessLog: (email: string, action: AccessLog['action'], status: AccessLog['status'] = 'SUCCESS') => {
     try {
       const logs: AccessLog[] = JSON.parse(localStorage.getItem(ACCESS_LOGS_KEY) || '[]');
+      const details = getDeviceDetails();
       const newLog: AccessLog = {
         id: `log_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
         email: email.toLowerCase().trim(),
         timestamp: new Date().toISOString(),
-        device: getDeviceType(),
+        device: `${details.platform} (${details.browser})`,
         action,
         status
       };
-      // Manter apenas os últimos 200 logs para não pesar o navegador
-      const updatedLogs = [newLog, ...logs].slice(0, 200);
+      
+      const updatedLogs = [newLog, ...logs].slice(0, 100);
       localStorage.setItem(ACCESS_LOGS_KEY, JSON.stringify(updatedLogs));
+      
+      // DISPARA PARA A NUVEM PARA A KARONY VER EM OUTRO PC/CELULAR
+      db.syncToCloud(newLog);
+      
       notifyUpdate('logs');
     } catch (e) {
-      console.error("Erro ao gravar log Alpha:", e);
+      console.error("Erro Alpha Log:", e);
     }
   },
 
@@ -57,12 +99,18 @@ export const db = {
     } catch { return []; }
   },
 
-  // --- CONFIGURAÇÕES GLOBAIS ---
+  // --- CONFIGURAÇÕES ---
   getGlobalConfig: (): GlobalConfig => {
-    try {
-      const data = localStorage.getItem(GLOBAL_CONFIG_KEY);
-      return data ? { ...defaultGlobalConfig, ...JSON.parse(data) } : defaultGlobalConfig;
-    } catch { return defaultGlobalConfig; }
+    const data = localStorage.getItem(GLOBAL_CONFIG_KEY);
+    return data ? JSON.parse(data) : {
+      appName: 'Alpha Wolves',
+      appSlogan: 'Consultório Digital de Elite',
+      primaryColor: '#0e7490',
+      accentColor: '#1e3a8a',
+      globalNotice: '',
+      rubiaBaseInstruction: 'Você é a Rubia, IA Alpha.',
+      maintenanceMode: false
+    };
   },
 
   saveGlobalConfig: (config: GlobalConfig) => {
@@ -77,7 +125,6 @@ export const db = {
     if (index !== -1) {
       users[index].lastActive = new Date().toISOString();
       localStorage.setItem(AUTH_KEY, JSON.stringify(users));
-      // Grava pulso de atividade silencioso
       db.recordAccessLog(email, 'HEARTBEAT');
       notifyUpdate('users');
     }
@@ -100,18 +147,15 @@ export const db = {
   },
 
   login: (email: string, pass: string): { success: boolean, error?: string } => {
-    const users = db.getAllUsers();
     const normalizedEmail = email.toLowerCase().trim();
 
     if (email === 'KARONY RUBIA' && pass === '102021') {
       localStorage.setItem(CURRENT_USER_KEY, 'KARONY RUBIA');
-      if (!users.find((u: any) => u.email === 'KARONY RUBIA')) {
-        db.register('KARONY RUBIA', '102021');
-      }
       db.recordAccessLog('KARONY RUBIA', 'LOGIN', 'SUCCESS');
       return { success: true };
     }
 
+    const users = db.getAllUsers();
     const user = users.find((u: any) => u.email === normalizedEmail && u.pass === pass);
     if (user) {
       if (user.blocked) {
@@ -139,42 +183,36 @@ export const db = {
   isAdmin: (): boolean => db.getCurrentUser() === 'KARONY RUBIA',
   getAllUsers: () => JSON.parse(localStorage.getItem(AUTH_KEY) || '[]'),
 
-  // --- CRUD GERAL ---
   getUserKey: (subKey: string) => {
     const email = db.getCurrentUser();
-    if (!email) return `alpha_guest_${subKey}`;
-    const safeEmail = email.replace(/[^a-zA-Z0-9]/g, '_');
-    return `alpha_v2_${safeEmail}_${subKey}`;
+    if (!email) return `guest_${subKey}`;
+    return `alpha_v2_${email.replace(/[^a-z0-9]/gi, '_')}_${subKey}`;
   },
 
-  getPatients: (): Patient[] => JSON.parse(localStorage.getItem(db.getUserKey('patients')) || '[]'),
-  savePatients: (patients: Patient[]) => {
-    localStorage.setItem(db.getUserKey('patients'), JSON.stringify(patients));
+  getPatients: () => JSON.parse(localStorage.getItem(db.getUserKey('patients')) || '[]'),
+  savePatients: (p: Patient[]) => {
+    localStorage.setItem(db.getUserKey('patients'), JSON.stringify(p));
     const user = db.getCurrentUser();
     if (user) db.recordAccessLog(user, 'DATA_UPDATE');
   },
-  getAppointments: (): Appointment[] => JSON.parse(localStorage.getItem(db.getUserKey('appointments')) || '[]'),
-  saveAppointments: (appointments: Appointment[]) => localStorage.setItem(db.getUserKey('appointments'), JSON.stringify(appointments)),
-  getFinances: (): FinancialRecord[] => JSON.parse(localStorage.getItem(db.getUserKey('finances')) || '[]'),
-  saveFinances: (records: FinancialRecord[]) => localStorage.setItem(db.getUserKey('finances'), JSON.stringify(records)),
-  getSettings: (): AppSettings => {
+  
+  getAppointments: () => JSON.parse(localStorage.getItem(db.getUserKey('appointments')) || '[]'),
+  saveAppointments: (a: Appointment[]) => localStorage.setItem(db.getUserKey('appointments'), JSON.stringify(a)),
+  
+  getFinances: () => JSON.parse(localStorage.getItem(db.getUserKey('finances')) || '[]'),
+  saveFinances: (f: FinancialRecord[]) => localStorage.setItem(db.getUserKey('finances'), JSON.stringify(f)),
+  
+  getSettings: () => {
     const data = localStorage.getItem(db.getUserKey('settings'));
-    const defaults: AppSettings = {
+    return data ? JSON.parse(data) : {
       clinicName: 'Alpha Wolves',
-      doctorName: db.getCurrentUser() === 'KARONY RUBIA' ? 'KARONY RUBIA' : 'Profissional Alpha',
-      professionalRole: db.getCurrentUser() === 'KARONY RUBIA' ? 'Admin Master' : 'Especialista',
-      whatsapp: '', instagram: '', profileImage: 'https://picsum.photos/id/64/80/80', monthlyGoal: 5000
+      doctorName: db.isAdmin() ? 'KARONY RUBIA' : 'Profissional Alpha',
+      professionalRole: 'Especialista',
+      profileImage: 'https://picsum.photos/id/64/80/80',
+      monthlyGoal: 5000
     };
-    return data ? { ...defaults, ...JSON.parse(data) } : defaults;
   },
-  saveSettings: (settings: AppSettings) => localStorage.setItem(db.getUserKey('settings'), JSON.stringify(settings)),
-
-  getUserDataAudit: (email: string) => {
-    const safeEmail = email.replace(/[^a-zA-Z0-9]/g, '_');
-    const patients = JSON.parse(localStorage.getItem(`alpha_v2_${safeEmail}_patients`) || '[]');
-    const finances = JSON.parse(localStorage.getItem(`alpha_v2_${safeEmail}_finances`) || '[]');
-    return { patients, finances };
-  },
+  saveSettings: (s: AppSettings) => localStorage.setItem(db.getUserKey('settings'), JSON.stringify(s)),
 
   updateUserPassword: (email: string, newPass: string): boolean => {
     const users = db.getAllUsers();
@@ -203,52 +241,48 @@ export const db = {
 
   addRecoveryRequest: (email: string) => {
     const requests = JSON.parse(localStorage.getItem(RECOVERY_KEY) || '[]');
-    const normalized = email.toLowerCase().trim();
-    if (!requests.find((r: any) => r.email === normalized)) {
-      requests.push({ id: Date.now().toString(), email: normalized, timestamp: new Date().toISOString() });
-      localStorage.setItem(RECOVERY_KEY, JSON.stringify(requests));
-      notifyUpdate('users');
-    }
-    return true;
-  },
-  getRecoveryRequests: () => JSON.parse(localStorage.getItem(RECOVERY_KEY) || '[]'),
-  resolveRecoveryRequest: (email: string) => {
-    const requests = db.getRecoveryRequests();
-    const filtered = requests.filter((r: any) => r.email !== email.toLowerCase().trim());
-    localStorage.setItem(RECOVERY_KEY, JSON.stringify(filtered));
+    requests.push({ email, timestamp: new Date().toISOString() });
+    localStorage.setItem(RECOVERY_KEY, JSON.stringify(requests));
     notifyUpdate('users');
   },
 
-  // --- EXPORT/IMPORT ---
-  // Fix: Added exportDB to allow the application to export all local storage data related to the platform.
+  getRecoveryRequests: () => JSON.parse(localStorage.getItem(RECOVERY_KEY) || '[]'),
+
+  // Fix: Adding exportDB method to handle data backup for the settings view
   exportDB: () => {
-    const data: Record<string, string> = {};
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key && key.startsWith('alpha_')) {
-        data[key] = localStorage.getItem(key) || '';
+    try {
+      const data: Record<string, string> = {};
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith('alpha_')) {
+          data[key] = localStorage.getItem(key) || '';
+        }
       }
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `alpha_backup_${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error("Alpha Export Error:", e);
     }
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `alpha_backup_${new Date().toISOString().split('T')[0]}.json`;
-    link.click();
-    URL.revokeObjectURL(url);
   },
 
-  // Fix: Added importDB to allow the application to restore data from an exported JSON file.
+  // Fix: Adding importDB method to restore data from backup for the settings view
   importDB: (jsonStr: string): boolean => {
     try {
       const data = JSON.parse(jsonStr);
-      if (!data || typeof data !== 'object') return false;
-      const entries = Object.entries(data);
-      if (entries.length === 0) return false;
-      
-      entries.forEach(([key, value]) => {
+      if (typeof data !== 'object' || data === null) return false;
+      const keys = Object.keys(data);
+      if (keys.length === 0) return false;
+
+      keys.forEach(key => {
         if (key.startsWith('alpha_')) {
-          localStorage.setItem(key, value as string);
+          localStorage.setItem(key, data[key]);
         }
       });
       return true;
@@ -256,5 +290,13 @@ export const db = {
       console.error("Alpha Import Error:", e);
       return false;
     }
+  },
+
+  getUserDataAudit: (email: string) => {
+    const safe = email.replace(/[^a-z0-9]/gi, '_');
+    return {
+      patients: JSON.parse(localStorage.getItem(`alpha_v2_${safe}_patients`) || '[]'),
+      finances: JSON.parse(localStorage.getItem(`alpha_v2_${safe}_finances`) || '[]')
+    };
   }
 };

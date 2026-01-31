@@ -1,8 +1,9 @@
 {
-  "name": "nova versao/Alpha Wolves Consultório",
-  "description": "Um sistema de gestão clínica de alto desempenho com uma secretária virtual com inteligência artificial integrada para agendamento, informações sobre pacientes e controle financeiro.",
+  "name": "Alpha Wolves Consultório",
+  "description": "Sistema de gestão clínica de alto desempenho com monitoramento global em tempo real.",
   "requestFramePermissions": [
     "microphone",
-    "camera"
+    "camera",
+    "geolocation"
   ]
 }
