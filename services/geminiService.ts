@@ -1,10 +1,9 @@
 
 import { GoogleGenAI } from "@google/genai";
 import { Patient, Appointment } from "../types";
+import { db } from "../db/storage";
 
 const MODEL_NAME = 'gemini-3-flash-preview';
-
-// Fix: Always initialize GoogleGenAI using a direct reference to process.env.API_KEY.
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 export class SecretaryService {
@@ -14,26 +13,23 @@ export class SecretaryService {
     context: { patients: Patient[], appointments: Appointment[] },
     doctorName: string = "Dr(a)"
   ) {
+    const globalConfig = db.getGlobalConfig();
+    
+    // Combina a instrução base definida pelo Master Admin com os dados em tempo real do usuário
     const systemInstruction = `
-      Você é a Rubia, a Secretária Virtual inteligente de elite do consultório.
-      Seu objetivo é ser o cérebro operacional por trás do sucesso do(a) profissional.
-      Refira-se ao usuário sempre como "Dr(a)".
+      ${globalConfig.rubiaBaseInstruction}
       
-      Você tem acesso total aos dados (em tempo real):
-      Pacientes: ${JSON.stringify(context.patients)}
-      Agenda: ${JSON.stringify(context.appointments)}
+      Você está atendendo o(a) Dr(a) ${doctorName}.
+      
+      DADOS DO CONSULTÓRIO DESTE USUÁRIO:
+      Pacientes Cadastrados: ${JSON.stringify(context.patients.map(p => ({name: p.name, phone: p.phone, lastVisit: p.lastVisit})))}
+      Agenda de Atendimentos: ${JSON.stringify(context.appointments)}
 
-      Suas diretrizes de personalidade:
-      1. TOM: Executivo, sofisticado, direto e ultra-eficiente. 
-      2. IDENTIDADE: Você é a Rubia.
-      3. CAPACIDADES: Você analisa métricas, sugere textos de lembrete via WhatsApp, resume prontuários e ajuda a priorizar o dia.
-      4. WHATSAPP: Se o usuário pedir para enviar uma mensagem, escreva o texto PRONTO para copiar e colar, com emojis profissionais e links de confirmação.
-
-      Exemplo de resposta ao pedir lembrete:
-      "Dr(a), preparei este lembrete para a Ana Silva (Consulta às 09:00):
-      'Olá Ana! 🌸 Confirmamos sua consulta hoje às 09:00. Aguardamos você. Confirme com OK.'"
-
-      Nunca saia do personagem. Você é Rubia.
+      DIRETRIZES TÉCNICAS:
+      - Responda sempre em português.
+      - Seja proativa ao sugerir textos de WhatsApp.
+      - Se o Dr(a) pedir resumo de um paciente, analise os dados fornecidos acima.
+      - Se você for questionada sobre quem te criou, responda que faz parte do ecossistema Alpha Wolves, projetado por Karony Rubia.
     `;
 
     try {
@@ -45,14 +41,14 @@ export class SecretaryService {
         })).concat([{ role: 'user', parts: [{ text: userMessage }] }]),
         config: {
           systemInstruction,
-          temperature: 0.6,
+          temperature: 0.7,
         },
       });
 
-      return response.text || "Rubia encontrou uma interferência. Tentando reconectar...";
+      return response.text || "Desculpe Dr(a), tive um problema na conexão. Pode repetir?";
     } catch (error) {
       console.error("Gemini Error:", error);
-      return "Sistema Rubia offline. Verifique a chave de integração Gemini.";
+      return "Sinto muito Dr(a), meu cérebro de IA está temporariamente offline. Verifique a API Key.";
     }
   }
 }

@@ -1,172 +1,225 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { db } from '../db/storage';
+import { GlobalConfig } from '../types';
 
 const AdminPanel: React.FC = () => {
+  const [activeTab, setActiveTab] = useState<'users' | 'global' | 'audit'>('users');
   const [users, setUsers] = useState<any[]>([]);
+  const [requests, setRequests] = useState<any[]>([]);
+  const [globalConfig, setGlobalConfig] = useState<GlobalConfig>(db.getGlobalConfig());
   const [searchTerm, setSearchTerm] = useState('');
   const [editingUser, setEditingUser] = useState<string | null>(null);
   const [newPassword, setNewPassword] = useState('');
   const [statusMsg, setStatusMsg] = useState('');
+  
+  const [auditUser, setAuditUser] = useState<string | null>(null);
+  const [auditData, setAuditData] = useState<{patients: any[], finances: any[]} | null>(null);
 
-  useEffect(() => {
-    loadUsers();
+  const loadData = useCallback(() => {
+    setUsers(db.getAllUsers());
+    setRequests(db.getRecoveryRequests());
+    setGlobalConfig(db.getGlobalConfig());
   }, []);
 
-  const loadUsers = () => {
-    setUsers(db.getAllUsers());
-  };
+  useEffect(() => {
+    loadData();
+    window.addEventListener('alpha_users_updated', loadData);
+    window.addEventListener('storage', loadData);
+    const interval = setInterval(loadData, 10000);
+    return () => {
+      window.removeEventListener('alpha_users_updated', loadData);
+      window.removeEventListener('storage', loadData);
+      clearInterval(interval);
+    };
+  }, [loadData]);
 
   const handleUpdatePassword = (email: string) => {
     if (!newPassword) return;
-    const success = db.updateUserPassword(email, newPassword);
-    if (success) {
-      setStatusMsg(`Senha de ${email} alterada com sucesso!`);
-      setNewPassword('');
-      setEditingUser(null);
-      loadUsers();
+    if (db.updateUserPassword(email, newPassword)) {
+      setStatusMsg(`Senha de ${email} alterada!`);
+      setNewPassword(''); setEditingUser(null); loadData();
       setTimeout(() => setStatusMsg(''), 3000);
     }
   };
 
   const handleToggleBlock = (email: string) => {
-    if (email === 'KARONY RUBIA') {
-      setStatusMsg('Erro: Você não pode bloquear o acesso administrativo master.');
-      setTimeout(() => setStatusMsg(''), 3000);
-      return;
-    }
-    const success = db.toggleUserBlock(email);
-    if (success) {
-      loadUsers();
+    if (email === 'KARONY RUBIA') return;
+    if (db.toggleUserBlock(email)) {
+      loadData();
       setStatusMsg(`Status de ${email} atualizado!`);
       setTimeout(() => setStatusMsg(''), 3000);
     }
   };
 
-  const filteredUsers = users.filter(u => 
-    u.email.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const handleSaveGlobal = () => {
+    db.saveGlobalConfig(globalConfig);
+    setStatusMsg('Configurações Globais Aplicadas!');
+    setTimeout(() => setStatusMsg(''), 3000);
+  };
 
-  if (!db.isAdmin()) {
-    return (
-      <div className="h-full flex items-center justify-center p-12">
-        <div className="bg-rose-50 p-8 rounded-3xl border border-rose-100 text-center">
-          <p className="text-rose-600 font-black uppercase tracking-widest">Acesso Negado</p>
-          <p className="text-xs text-rose-400 mt-2">Apenas KARONY RUBIA pode acessar este painel.</p>
-        </div>
-      </div>
-    );
-  }
+  const handleAuditUser = (email: string) => {
+    const data = db.getUserDataAudit(email);
+    setAuditUser(email);
+    setAuditData(data);
+    setActiveTab('audit');
+  };
+
+  const formatLastActive = (dateStr?: string) => {
+    if (!dateStr) return "Nunca acessou";
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diff = Math.floor((now.getTime() - date.getTime()) / 60000);
+    if (diff < 5) return "Online agora 🟢";
+    return date.toLocaleString('pt-BR');
+  };
+
+  if (!db.isAdmin()) return null;
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in duration-500 pb-20">
+    <div className="max-w-5xl mx-auto space-y-8 animate-in fade-in duration-500 pb-20">
       <div className="bg-slate-900 rounded-[3rem] shadow-2xl overflow-hidden border border-slate-800">
-        <div className="p-10 bg-gradient-to-br from-slate-800 to-slate-900 text-white flex justify-between items-center">
-          <div>
-            <h2 className="text-3xl font-black tracking-tight">Master Console</h2>
-            <p className="text-cyan-400 font-black uppercase tracking-widest text-[10px] mt-1">Gestão de Contas Alpha Wolves</p>
+        <div className="p-10 bg-gradient-to-br from-slate-800 to-slate-900 text-white flex flex-col md:flex-row justify-between items-center gap-6">
+          <div className="text-center md:text-left">
+            <h2 className="text-4xl font-black tracking-tighter text-white">Alpha Command</h2>
+            <div className="flex items-center gap-2 mt-1 justify-center md:justify-start">
+              <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
+              <p className="text-cyan-400 font-black uppercase tracking-widest text-[10px]">Karony Rubia Control Center</p>
+            </div>
           </div>
-          <div className="w-16 h-16 bg-cyan-500/10 rounded-2xl flex items-center justify-center text-cyan-400 border border-cyan-500/20">
-             <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+          
+          <div className="flex bg-slate-800/50 p-1.5 rounded-2xl border border-slate-700">
+            {['users', 'global', 'audit'].map((tab) => (
+              <button key={tab} onClick={() => setActiveTab(tab as any)} className={`px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === tab ? 'bg-cyan-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}>
+                {tab === 'users' ? 'Usuários' : tab === 'global' ? 'Sistema Master' : 'Auditoria'}
+              </button>
+            ))}
           </div>
         </div>
 
-        <div className="p-8 md:p-12 space-y-8">
+        <div className="p-8 md:p-12 min-h-[500px]">
           {statusMsg && (
-            <div className={`p-4 rounded-2xl text-xs font-bold text-center animate-bounce border ${statusMsg.includes('Erro') ? 'bg-rose-500/10 border-rose-500/20 text-rose-400' : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'}`}>
+            <div className="p-4 rounded-2xl text-xs font-bold text-center mb-8 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 animate-in slide-in-from-top">
               {statusMsg}
             </div>
           )}
 
-          <div className="space-y-4">
-            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-2">Pesquisar Usuário (E-mail)</label>
-            <div className="relative">
-              <input 
-                type="text"
-                placeholder="Ex: ana@consultorio.com"
-                className="w-full bg-slate-800 border border-slate-700 rounded-2xl p-5 text-white text-sm focus:ring-2 focus:ring-cyan-500 outline-none transition-all"
-                value={searchTerm}
-                onChange={e => setSearchTerm(e.target.value)}
-              />
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-2">Lista de Usuários Cadastrados</h4>
-            <div className="space-y-3">
-              {filteredUsers.map((user) => (
-                <div key={user.email} className={`bg-slate-800/50 border ${user.blocked ? 'border-rose-500/30' : 'border-slate-700'} p-6 rounded-3xl flex flex-col gap-4 transition-all hover:border-slate-600`}>
-                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div>
-                      <div className="flex items-center gap-2">
+          {activeTab === 'users' && (
+            <div className="space-y-10">
+              <div className="flex flex-col md:flex-row justify-between items-end md:items-center gap-4">
+                 <h4 className="text-[11px] font-black text-slate-500 uppercase tracking-widest px-2">Monitoramento de Profissionais ({users.length})</h4>
+                 <input type="text" placeholder="Pesquisar e-mail..." className="bg-slate-800 border border-slate-700 rounded-xl px-4 py-2 text-xs text-white outline-none w-full md:w-64" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+              </div>
+              
+              <div className="grid grid-cols-1 gap-4">
+                {users.filter(u => u.email.includes(searchTerm)).map(user => (
+                  <div key={user.email} className={`bg-slate-800/40 border ${user.blocked ? 'border-rose-500/30' : 'border-slate-800'} p-6 rounded-[2rem] flex flex-col md:flex-row md:items-center justify-between gap-6 transition-all hover:bg-slate-800/60`}>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3">
                         <p className="text-sm font-black text-white">{user.email}</p>
-                        {user.blocked && (
-                          <span className="bg-rose-500 text-white text-[8px] font-black px-2 py-0.5 rounded-full uppercase">Bloqueado</span>
-                        )}
+                        {user.blocked && <span className="bg-rose-500 text-white text-[8px] font-black px-2 py-0.5 rounded-lg uppercase">Acesso Negado</span>}
                       </div>
-                      <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">
-                        {user.email === 'KARONY RUBIA' ? 'Status: Administradora Master' : 'Status: Usuário Padrão'}
-                      </p>
+                      <div className="flex flex-wrap gap-x-6 gap-y-1 mt-2">
+                         <p className="text-[10px] text-slate-500 font-bold uppercase">Senha: <span className="text-slate-300 font-mono">{user.pass}</span></p>
+                         <p className="text-[10px] text-slate-500 font-bold uppercase">Visto por último: <span className="text-cyan-400">{formatLastActive(user.lastActive)}</span></p>
+                         <button onClick={() => handleAuditUser(user.email)} className="text-[10px] font-black text-cyan-500 uppercase hover:underline">Auditar Banco</button>
+                      </div>
                     </div>
 
-                    <div className="flex items-center gap-2">
-                      <button 
-                        onClick={() => handleToggleBlock(user.email)}
-                        disabled={user.email === 'KARONY RUBIA'}
-                        className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
-                          user.blocked 
-                          ? 'bg-emerald-600 text-white hover:bg-emerald-500' 
-                          : 'bg-rose-600/20 text-rose-500 hover:bg-rose-600 hover:text-white'
-                        } disabled:opacity-20 disabled:cursor-not-allowed`}
-                      >
-                        {user.blocked ? 'Desbloquear' : 'Bloquear Acesso'}
-                      </button>
+                    <div className="flex gap-2 shrink-0">
+                       <button onClick={() => handleToggleBlock(user.email)} disabled={user.email === 'KARONY RUBIA'} className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${user.blocked ? 'bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600 hover:text-white' : 'bg-rose-600/10 text-rose-500 hover:bg-rose-600 hover:text-white'} disabled:opacity-10`}>
+                         {user.blocked ? 'Desbloquear' : 'Bloquear'}
+                       </button>
+                       <button onClick={() => setEditingUser(user.email)} className="bg-slate-700/50 text-slate-400 px-4 py-2 rounded-xl text-[9px] font-black uppercase hover:text-white">Trocar Senha</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
-                      {editingUser === user.email ? (
-                        <div className="flex gap-2">
-                          <input 
-                            type="text"
-                            placeholder="Nova Senha"
-                            className="bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-xs text-white focus:ring-1 focus:ring-cyan-500 outline-none w-32"
-                            value={newPassword}
-                            onChange={e => setNewPassword(e.target.value)}
-                          />
-                          <button 
-                            onClick={() => handleUpdatePassword(user.email)}
-                            className="bg-cyan-600 text-white px-3 py-2 rounded-xl text-[10px] font-black uppercase"
-                          >
-                            OK
-                          </button>
-                          <button 
-                            onClick={() => {setEditingUser(null); setNewPassword('');}}
-                            className="bg-slate-700 text-slate-300 px-3 py-2 rounded-xl text-[10px] font-black uppercase"
-                          >
-                            X
-                          </button>
-                        </div>
-                      ) : (
+          {activeTab === 'global' && (
+            <div className="space-y-10 animate-in slide-in-from-right">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                <div className="space-y-6">
+                  <h4 className="text-[11px] font-black text-slate-500 uppercase tracking-widest px-2">Identidade Visual Master</h4>
+                  <div className="space-y-4 bg-slate-800/30 p-8 rounded-[2.5rem] border border-slate-800">
+                    <div className="space-y-2">
+                      <label className="text-[9px] font-black text-slate-500 uppercase ml-2">Nome do App</label>
+                      <input type="text" className="w-full bg-slate-900 border border-slate-700 rounded-2xl p-4 text-sm text-white" value={globalConfig.appName} onChange={e => setGlobalConfig({...globalConfig, appName: e.target.value})} />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <label className="text-[9px] font-black text-slate-500 uppercase ml-2">Cor Primária</label>
+                        <input type="color" className="w-full h-12 rounded-xl bg-transparent border-none cursor-pointer" value={globalConfig.primaryColor} onChange={e => setGlobalConfig({...globalConfig, primaryColor: e.target.value})} />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[9px] font-black text-slate-500 uppercase ml-2">Manutenção Global</label>
                         <button 
-                          onClick={() => setEditingUser(user.email)}
-                          className="bg-slate-700/50 text-slate-400 hover:text-white hover:bg-slate-700 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
+                          onClick={() => setGlobalConfig({...globalConfig, maintenanceMode: !globalConfig.maintenanceMode})}
+                          className={`w-full h-12 rounded-xl text-[10px] font-black uppercase transition-all ${globalConfig.maintenanceMode ? 'bg-rose-600 text-white' : 'bg-slate-700 text-slate-400'}`}
                         >
-                          Senha
+                          {globalConfig.maintenanceMode ? 'ATIVADA 🚨' : 'DESATIVADA'}
                         </button>
-                      )}
+                      </div>
                     </div>
                   </div>
                 </div>
-              ))}
-              {filteredUsers.length === 0 && (
-                <div className="text-center py-12 text-slate-600">
-                  <p className="text-xs font-black uppercase tracking-widest">Nenhum usuário encontrado</p>
+
+                <div className="space-y-6">
+                  <h4 className="text-[11px] font-black text-slate-500 uppercase tracking-widest px-2">Avisos e Inteligência</h4>
+                  <div className="space-y-4 bg-slate-800/30 p-8 rounded-[2.5rem] border border-slate-800">
+                    <div className="space-y-2">
+                      <label className="text-[9px] font-black text-slate-500 uppercase ml-2">Aviso Global</label>
+                      <input type="text" className="w-full bg-slate-900 border border-slate-700 rounded-2xl p-4 text-sm text-white" value={globalConfig.globalNotice} onChange={e => setGlobalConfig({...globalConfig, globalNotice: e.target.value})} />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[9px] font-black text-slate-500 uppercase ml-2">Instrução Rubia Master</label>
+                      <textarea className="w-full bg-slate-900 border border-slate-700 rounded-2xl p-4 text-[10px] text-slate-400 h-24 resize-none" value={globalConfig.rubiaBaseInstruction} onChange={e => setGlobalConfig({...globalConfig, rubiaBaseInstruction: e.target.value})} />
+                    </div>
+                  </div>
                 </div>
-              )}
+              </div>
+
+              <div className="flex justify-center pt-10">
+                <button onClick={handleSaveGlobal} className="bg-cyan-600 text-white px-12 py-5 rounded-[2rem] font-black uppercase tracking-widest text-xs shadow-2xl hover:scale-105 transition-all">Aplicar Modificações Alpha</button>
+              </div>
             </div>
-          </div>
+          )}
+
+          {activeTab === 'audit' && (
+            <div className="space-y-10">
+               {auditUser ? (
+                 <div className="bg-slate-800/50 p-10 rounded-[3rem] border border-slate-800">
+                    <div className="flex justify-between items-start mb-10">
+                      <div>
+                        <h3 className="text-2xl font-black text-white">Auditoria: {auditUser}</h3>
+                        <p className="text-[10px] text-slate-500 uppercase tracking-[0.2em] mt-1 font-bold">Inspecionando Registros do Banco Local</p>
+                      </div>
+                      <button onClick={() => setAuditUser(null)} className="text-rose-500 text-[10px] font-black uppercase">Fechar X</button>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                       <div className="bg-slate-900/50 p-6 rounded-3xl border border-slate-800">
+                          <p className="text-[9px] font-black text-cyan-500 uppercase mb-4 tracking-widest">Total de Pacientes</p>
+                          <p className="text-4xl font-black text-white">{auditData?.patients.length}</p>
+                       </div>
+                       <div className="bg-slate-900/50 p-6 rounded-3xl border border-slate-800">
+                          <p className="text-[9px] font-black text-emerald-500 uppercase mb-4 tracking-widest">Registros Financeiros</p>
+                          <p className="text-4xl font-black text-white">{auditData?.finances.length}</p>
+                       </div>
+                    </div>
+                 </div>
+               ) : (
+                 <div className="py-32 text-center text-slate-600 uppercase text-[10px] font-black tracking-widest">
+                    Selecione um profissional na lista para auditar.
+                 </div>
+               )}
+            </div>
+          )}
         </div>
 
-        <div className="p-10 bg-slate-800/50 border-t border-slate-800 flex flex-col items-center gap-4">
-          <p className="text-[10px] text-slate-500 font-black uppercase tracking-[0.3em]">Alpha Console Control Center</p>
+        <div className="p-10 bg-slate-800/50 border-t border-slate-800 flex justify-center">
+          <p className="text-[10px] text-slate-600 font-black uppercase tracking-[0.4em]">Alpha Wolves Integrity System v3.1</p>
         </div>
       </div>
     </div>

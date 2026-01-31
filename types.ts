@@ -11,6 +11,16 @@ export enum View {
   ADMIN = 'ADMIN'
 }
 
+export interface GlobalConfig {
+  appName: string;
+  appSlogan: string;
+  primaryColor: string; // Hex
+  accentColor: string;  // Hex
+  globalNotice: string;
+  rubiaBaseInstruction: string;
+  maintenanceMode: boolean;
+}
+
 export interface HistoryEntry {
   id: string;
   date: string;
