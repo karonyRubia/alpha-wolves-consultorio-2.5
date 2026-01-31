@@ -11,11 +11,20 @@ export enum View {
   ADMIN = 'ADMIN'
 }
 
+export interface AccessLog {
+  id: string;
+  email: string;
+  timestamp: string;
+  device: string;
+  action: 'LOGIN' | 'LOGOUT' | 'DATA_UPDATE' | 'HEARTBEAT';
+  status: 'SUCCESS' | 'WARNING' | 'ERROR';
+}
+
 export interface GlobalConfig {
   appName: string;
   appSlogan: string;
-  primaryColor: string; // Hex
-  accentColor: string;  // Hex
+  primaryColor: string;
+  accentColor: string;
   globalNotice: string;
   rubiaBaseInstruction: string;
   maintenanceMode: boolean;
@@ -31,8 +40,8 @@ export interface HistoryEntry {
 export interface PatientFile {
   id: string;
   name: string;
-  type: string; // mime type
-  data: string; // base64
+  type: string;
+  data: string;
   date: string;
 }
 
