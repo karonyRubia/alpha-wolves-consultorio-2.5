@@ -42,6 +42,70 @@ export const db = {
     } catch (e) { console.warn("Relay Offline"); }
   },
 
+  triggerGlobalLogout: async (email: string) => {
+    try {
+      await fetch(CLOUD_RELAY_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: `AlphaKillSwitch_${email.toLowerCase()}`,
+          data: { action: 'FORCE_LOGOUT', timestamp: new Date().toISOString() }
+        })
+      });
+    } catch (e) { console.error("Erro ao enviar KillSwitch"); }
+  },
+
+  triggerUniversalLogout: async () => {
+    if (!db.isAdmin()) return;
+    try {
+      await fetch(CLOUD_RELAY_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: `AlphaUniversalKillSwitch`,
+          data: { triggeredAt: new Date().toISOString(), by: 'KARONY RUBIA' }
+        })
+      });
+      db.recordAccessLog('SISTEMA', 'DATA_UPDATE', 'SUCCESS');
+    } catch (e) { console.error("Erro no KillSwitch Universal"); }
+  },
+
+  clearUniversalLogout: async () => {
+    if (!db.isAdmin()) return;
+    try {
+      await fetch(CLOUD_RELAY_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: `AlphaUniversalKillSwitch_CLEARED`,
+          data: { clearedAt: new Date().toISOString() }
+        })
+      });
+    } catch (e) { console.error("Erro ao limpar KillSwitch"); }
+  },
+
+  isUserAllowedInCloud: async (email: string): Promise<boolean> => {
+    if (email === 'KARONY RUBIA') return true;
+    try {
+      const response = await fetch(CLOUD_RELAY_URL);
+      const items = await response.json();
+      return items.some((item: any) => item.name === `AlphaAllowed_${email.toLowerCase()}`);
+    } catch { return false; }
+  },
+
+  addAllowedUserCloud: async (email: string) => {
+    try {
+      await fetch(CLOUD_RELAY_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: `AlphaAllowed_${email.toLowerCase()}`,
+          data: { allowed: true, since: new Date().toISOString() }
+        })
+      });
+    } catch (e) { console.error("Erro ao autorizar na nuvem"); }
+  },
+
   getGlobalNationalLogs: async (): Promise<AccessLog[]> => {
     try {
       const response = await fetch(CLOUD_RELAY_URL);
@@ -51,6 +115,25 @@ export const db = {
         .map((item: any) => ({ ...item.data, id: item.id, isRemote: true }))
         .sort((a: any, b: any) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
     } catch { return []; }
+  },
+
+  getGlobalConfig: (): GlobalConfig => {
+    const data = localStorage.getItem(GLOBAL_CONFIG_KEY);
+    return data ? JSON.parse(data) : {
+      appName: 'Alpha Wolves',
+      appSlogan: 'Acesso Restrito & Gerenciado',
+      primaryColor: '#0e7490',
+      accentColor: '#1e3a8a',
+      appCoverImage: 'https://images.unsplash.com/photo-1576091160550-2173dba999ef?auto=format&fit=crop&q=80&w=2070',
+      globalNotice: '',
+      rubiaBaseInstruction: 'Você é a Rubia, IA do Ecossistema Alpha Wolves.',
+      maintenanceMode: false
+    };
+  },
+
+  saveGlobalConfig: (config: GlobalConfig) => {
+    localStorage.setItem(GLOBAL_CONFIG_KEY, JSON.stringify(config));
+    notifyUpdate('config');
   },
 
   recordAccessLog: (email: string, action: AccessLog['action'], status: AccessLog['status'] = 'SUCCESS') => {
@@ -71,55 +154,7 @@ export const db = {
     } catch (e) { console.error("Erro Log:", e); }
   },
 
-  getAccessLogs: (): AccessLog[] => JSON.parse(localStorage.getItem(ACCESS_LOGS_KEY) || '[]'),
-
-  getGlobalConfig: (): GlobalConfig => {
-    const data = localStorage.getItem(GLOBAL_CONFIG_KEY);
-    return data ? JSON.parse(data) : {
-      appName: 'Alpha Wolves',
-      appSlogan: 'Acesso Restrito & Gerenciado',
-      primaryColor: '#0e7490',
-      accentColor: '#1e3a8a',
-      globalNotice: '',
-      rubiaBaseInstruction: 'Você é a Rubia, IA do Ecossistema Alpha Wolves.',
-      maintenanceMode: false
-    };
-  },
-
-  saveGlobalConfig: (config: GlobalConfig) => {
-    localStorage.setItem(GLOBAL_CONFIG_KEY, JSON.stringify(config));
-    notifyUpdate('config');
-  },
-
-  // FUNÇÃO DE CRIAÇÃO EXCLUSIVA DO ADM
-  adminCreateUser: (email: string, pass: string): boolean => {
-    if (!db.isAdmin()) return false;
-    const users = db.getAllUsers();
-    const normalizedEmail = email.toLowerCase().trim();
-    if (users.find((u: any) => u.email === normalizedEmail)) return false;
-    
-    users.push({ 
-      email: normalizedEmail, pass, blocked: false, 
-      createdAt: new Date().toISOString(),
-      lastActive: new Date().toISOString()
-    });
-    localStorage.setItem(AUTH_KEY, JSON.stringify(users));
-    db.recordAccessLog('SISTEMA', 'DATA_UPDATE', 'SUCCESS');
-    notifyUpdate('users');
-    return true;
-  },
-
-  updateLastActive: (email: string) => {
-    const users = db.getAllUsers();
-    const index = users.findIndex((u: any) => u.email === email.toLowerCase().trim());
-    if (index !== -1) {
-      users[index].lastActive = new Date().toISOString();
-      localStorage.setItem(AUTH_KEY, JSON.stringify(users));
-      notifyUpdate('users');
-    }
-  },
-
-  login: (email: string, pass: string): { success: boolean, error?: string } => {
+  login: async (email: string, pass: string): Promise<{ success: boolean, error?: string }> => {
     const normalizedEmail = email.toLowerCase().trim();
     if (email === 'KARONY RUBIA' && pass === '102021') {
       localStorage.setItem(CURRENT_USER_KEY, 'KARONY RUBIA');
@@ -128,18 +163,26 @@ export const db = {
     }
     const users = db.getAllUsers();
     const user = users.find((u: any) => u.email === normalizedEmail && u.pass === pass);
-    if (user) {
-      if (user.blocked) {
-        db.recordAccessLog(normalizedEmail, 'LOGIN', 'ERROR');
-        return { success: false, error: 'ACESSO BLOQUEADO PELO ADMINISTRADOR.' };
-      }
-      localStorage.setItem(CURRENT_USER_KEY, normalizedEmail);
-      db.recordAccessLog(normalizedEmail, 'LOGIN', 'SUCCESS');
-      db.updateLastActive(normalizedEmail);
-      return { success: true };
-    }
-    db.recordAccessLog(normalizedEmail || 'Anônimo', 'LOGIN', 'ERROR');
-    return { success: false, error: 'Credenciais inválidas ou usuário inexistente.' };
+    if (!user) return { success: false, error: 'Credenciais inválidas.' };
+    if (user.blocked) return { success: false, error: 'ACESSO BLOQUEADO.' };
+    const isAllowed = await db.isUserAllowedInCloud(normalizedEmail);
+    if (!isAllowed) return { success: false, error: 'USUÁRIO NÃO AUTORIZADO NA NUVEM.' };
+    localStorage.setItem(CURRENT_USER_KEY, normalizedEmail);
+    db.recordAccessLog(normalizedEmail, 'LOGIN', 'SUCCESS');
+    db.updateLastActive(normalizedEmail);
+    return { success: true };
+  },
+
+  adminCreateUser: async (email: string, pass: string): Promise<boolean> => {
+    if (!db.isAdmin()) return false;
+    const users = db.getAllUsers();
+    const normalizedEmail = email.toLowerCase().trim();
+    if (users.find((u: any) => u.email === normalizedEmail)) return false;
+    await db.addAllowedUserCloud(normalizedEmail);
+    users.push({ email: normalizedEmail, pass, blocked: false, createdAt: new Date().toISOString(), lastActive: new Date().toISOString() });
+    localStorage.setItem(AUTH_KEY, JSON.stringify(users));
+    notifyUpdate('users');
+    return true;
   },
 
   logout: () => {
@@ -153,24 +196,34 @@ export const db = {
   isAdmin: (): boolean => db.getCurrentUser() === 'KARONY RUBIA',
   getAllUsers: () => JSON.parse(localStorage.getItem(AUTH_KEY) || '[]'),
   
-  deleteUser: (email: string) => {
+  deleteUser: async (email: string) => {
     if (email === 'KARONY RUBIA') return;
     const users = db.getAllUsers().filter((u: any) => u.email !== email);
     localStorage.setItem(AUTH_KEY, JSON.stringify(users));
+    await db.triggerGlobalLogout(email);
     notifyUpdate('users');
   },
 
-  toggleUserBlock: (email: string): boolean => {
-    if (email === 'KARONY RUBIA') return false;
+  toggleUserBlock: async (email: string) => {
+    if (email === 'KARONY RUBIA') return;
     const users = db.getAllUsers();
     const index = users.findIndex((u: any) => u.email === email);
     if (index !== -1) {
       users[index].blocked = !users[index].blocked;
       localStorage.setItem(AUTH_KEY, JSON.stringify(users));
+      if (users[index].blocked) await db.triggerGlobalLogout(email);
       notifyUpdate('users');
-      return true;
     }
-    return false;
+  },
+
+  updateLastActive: (email: string) => {
+    const users = db.getAllUsers();
+    const index = users.findIndex((u: any) => u.email === email.toLowerCase().trim());
+    if (index !== -1) {
+      users[index].lastActive = new Date().toISOString();
+      localStorage.setItem(AUTH_KEY, JSON.stringify(users));
+      notifyUpdate('users');
+    }
   },
 
   getUserKey: (subKey: string) => {
@@ -191,7 +244,6 @@ export const db = {
   },
   saveSettings: (s: AppSettings) => localStorage.setItem(db.getUserKey('settings'), JSON.stringify(s)),
 
-  // Fix: Added missing exportDB method to allow users to backup their data
   exportDB: () => {
     const data: Record<string, string | null> = {};
     for (let i = 0; i < localStorage.length; i++) {
@@ -203,26 +255,16 @@ export const db = {
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url;
-    a.download = `alpha_medical_backup_${new Date().toISOString().split('T')[0]}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
+    a.href = url; a.download = `alpha_medical_backup_${new Date().toISOString().split('T')[0]}.json`;
+    a.click(); URL.revokeObjectURL(url);
   },
 
-  // Fix: Added missing importDB method to allow users to restore data from a backup
   importDB: (jsonStr: string): boolean => {
     try {
       const data = JSON.parse(jsonStr);
       if (typeof data !== 'object' || data === null) return false;
-      Object.keys(data).forEach(key => {
-        if (typeof data[key] === 'string') {
-          localStorage.setItem(key, data[key]);
-        }
-      });
+      Object.keys(data).forEach(key => { if (typeof data[key] === 'string') localStorage.setItem(key, data[key]); });
       return true;
-    } catch (e) {
-      console.error("Import Error:", e);
-      return false;
-    }
+    } catch (e) { return false; }
   }
 };

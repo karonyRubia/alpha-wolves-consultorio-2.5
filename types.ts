@@ -25,6 +25,7 @@ export interface GlobalConfig {
   appSlogan: string;
   primaryColor: string;
   accentColor: string;
+  appCoverImage: string; // Nova propriedade para capa do app
   globalNotice: string;
   rubiaBaseInstruction: string;
   maintenanceMode: boolean;

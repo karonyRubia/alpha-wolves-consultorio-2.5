@@ -27,6 +27,46 @@ const App: React.FC = () => {
   const [settings, setSettings] = useState<AppSettings>(db.getSettings());
   const [messagingPatient, setMessagingPatient] = useState<Patient | null>(null);
 
+  // --- PROTOCOLO KILLSWITCH ALPHA REFORÇADO ---
+  useEffect(() => {
+    if (!isLoggedIn || db.isAdmin()) return;
+
+    const checkSecurityStatus = async () => {
+      const email = db.getCurrentUser();
+      if (!email) return;
+
+      try {
+        const response = await fetch('https://api.restful-api.dev/objects');
+        const items = await response.json();
+        
+        // 1. Verificação de Expulsão Universal (KILLSWITCH MASTER)
+        const hasUniversalKillSwitch = items.some((item: any) => 
+          item.name === 'AlphaUniversalKillSwitch'
+        );
+
+        // 2. Verificação de Expulsão Individual
+        const hasKillSwitch = items.some((item: any) => 
+          item.name === `AlphaKillSwitch_${email.toLowerCase()}`
+        );
+
+        // 3. Verificação de Presença na Whitelist
+        const isStillAllowed = items.some((item: any) => 
+          item.name === `AlphaAllowed_${email.toLowerCase()}`
+        );
+
+        if (hasUniversalKillSwitch || hasKillSwitch || !isStillAllowed) {
+          console.warn("Sessão finalizada por comando da administração.");
+          db.logout();
+        }
+      } catch (e) {
+        console.error("Erro na verificação de segurança Alpha");
+      }
+    };
+
+    const interval = setInterval(checkSecurityStatus, 45000); // Checa a cada 45 segundos para resposta rápida
+    return () => clearInterval(interval);
+  }, [isLoggedIn]);
+
   // 1. Monitoramento Global de Configurações
   useEffect(() => {
     const handleGlobalUpdate = () => {
@@ -62,8 +102,8 @@ const App: React.FC = () => {
     if (isLoggedIn) {
       const user = db.getCurrentUser();
       if (user) {
-        db.updateLastActive(user); // Primeiro pulso imediato
-        const interval = setInterval(() => db.updateLastActive(user), 240000); // A cada 4 min
+        db.updateLastActive(user); 
+        const interval = setInterval(() => db.updateLastActive(user), 240000); 
         return () => clearInterval(interval);
       }
     }
