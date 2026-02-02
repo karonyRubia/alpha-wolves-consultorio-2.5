@@ -36,33 +36,34 @@ const App: React.FC = () => {
       document.documentElement.style.setProperty('--alpha-accent', config.accentColor);
     };
     handleGlobalUpdate();
-    window.addEventListener('alpha_global_config_updated', handleGlobalUpdate);
-    return () => window.removeEventListener('alpha_global_config_updated', handleGlobalUpdate);
+    window.addEventListener('alpha_config_updated', handleGlobalUpdate);
+    return () => window.removeEventListener('alpha_config_updated', handleGlobalUpdate);
   }, []);
 
-  // 2. Carregamento Inicial dos Dados (Trava de Segurança)
+  // 2. Carregamento Inicial dos Dados
   useEffect(() => {
     if (isLoggedIn) {
       setPatients(db.getPatients());
       setAppointments(db.getAppointments());
       setFinances(db.getFinances());
       setSettings(db.getSettings());
-      setIsDataLoaded(true); // Marca como carregado para permitir futuros salvamentos
+      setIsDataLoaded(true);
     }
   }, [isLoggedIn]);
 
-  // 3. Salvamento Automático com Proteção contra Perda de Dados
+  // 3. Salvamento Automático
   useEffect(() => { if (isLoggedIn && isDataLoaded) db.savePatients(patients); }, [patients, isLoggedIn, isDataLoaded]);
   useEffect(() => { if (isLoggedIn && isDataLoaded) db.saveAppointments(appointments); }, [appointments, isLoggedIn, isDataLoaded]);
   useEffect(() => { if (isLoggedIn && isDataLoaded) db.saveFinances(finances); }, [finances, isLoggedIn, isDataLoaded]);
   useEffect(() => { if (isLoggedIn && isDataLoaded) db.saveSettings(settings); }, [settings, isLoggedIn, isDataLoaded]);
 
-  // 4. Registro de Atividade (A cada 5 minutos se estiver ativo)
+  // 4. Registro de Atividade (Heartbeat Alpha)
   useEffect(() => {
     if (isLoggedIn) {
       const user = db.getCurrentUser();
       if (user) {
-        const interval = setInterval(() => db.updateLastActive(user), 300000);
+        db.updateLastActive(user); // Primeiro pulso imediato
+        const interval = setInterval(() => db.updateLastActive(user), 240000); // A cada 4 min
         return () => clearInterval(interval);
       }
     }
@@ -94,21 +95,27 @@ const App: React.FC = () => {
     <Layout currentView={currentView} onViewChange={setCurrentView} settings={settings} globalConfig={globalConfig}>
       {globalConfig.maintenanceMode && !db.isAdmin() && (
         <div className="fixed inset-0 z-[999] bg-slate-900 flex flex-col items-center justify-center text-white p-10 text-center">
-           <div className="w-20 h-20 bg-amber-500 rounded-full flex items-center justify-center mb-6 animate-pulse">
-              <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+           <div className="w-20 h-20 bg-rose-600 rounded-full flex items-center justify-center mb-6 animate-pulse shadow-[0_0_50px_rgba(225,29,72,0.4)]">
+              <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
            </div>
-           <h2 className="text-3xl font-black mb-4 uppercase">Modo de Manutenção</h2>
-           <p className="max-w-md text-slate-400 font-bold mb-8">A Administradora Karony Rubia está atualizando o sistema. Voltaremos em breve com novidades.</p>
-           <button onClick={() => db.logout()} className="bg-white text-slate-900 px-8 py-3 rounded-2xl font-black uppercase text-xs">Sair do App</button>
+           <h2 className="text-3xl font-black mb-4 uppercase tracking-tighter">SISTEMA BLOQUEADO</h2>
+           <p className="max-w-md text-slate-400 font-bold mb-8 uppercase text-[11px] tracking-widest leading-relaxed">A Administradora Karony Rubia ativou o modo de segurança. Todos os terminais foram desconectados para manutenção.</p>
+           <button onClick={() => db.logout()} className="bg-white text-slate-900 px-8 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest">Desconectar</button>
         </div>
       )}
+
       {globalConfig.globalNotice && (
-        <div className="bg-amber-100 border-b border-amber-200 py-2 px-4 text-center">
-          <p className="text-[10px] font-black text-amber-700 uppercase tracking-[0.2em] animate-pulse">
-            Aviso Master: {globalConfig.globalNotice}
-          </p>
+        <div className="bg-amber-500 py-3 px-6 shadow-2xl relative z-50 overflow-hidden">
+           <div className="absolute inset-0 bg-white/10 animate-pulse"></div>
+           <div className="max-w-7xl mx-auto flex items-center justify-center gap-4 relative z-10">
+              <span className="bg-white/20 px-2 py-1 rounded-md text-[9px] font-black text-white border border-white/20 uppercase">Aviso Master</span>
+              <p className="text-[11px] font-black text-white uppercase tracking-[0.1em] text-center drop-shadow-md">
+                {globalConfig.globalNotice}
+              </p>
+           </div>
         </div>
       )}
+
       <div className="h-full w-full">{renderContent()}</div>
       {messagingPatient && <MessageModal patient={messagingPatient} onClose={() => setMessagingPatient(null)} clinicName={settings.clinicName} />}
     </Layout>
