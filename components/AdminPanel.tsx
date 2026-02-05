@@ -101,10 +101,10 @@ const AdminPanel: React.FC = () => {
 
   return (
     <div className="max-w-6xl mx-auto space-y-8 pb-24 animate-in fade-in duration-700">
-      <div className="bg-slate-950 rounded-[4rem] shadow-2xl overflow-hidden border border-slate-800">
+      <div className="bg-slate-900 rounded-[4rem] shadow-2xl overflow-hidden border border-slate-800">
         
-        {/* COMANDO MASTER HEADER */}
-        <div className="p-12 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-950 text-white flex flex-col lg:flex-row justify-between items-center gap-10 border-b border-white/5">
+        {/* COMANDO MASTER HEADER - UPDATE FROM BLACK TO NAVY */}
+        <div className="p-12 bg-gradient-to-br from-blue-950 via-slate-900 to-blue-900 text-white flex flex-col lg:flex-row justify-between items-center gap-10 border-b border-white/5">
           <div className="flex items-center gap-8">
             <div className="w-24 h-24 rounded-[2.8rem] bg-blue-600 flex items-center justify-center shadow-[0_0_60px_rgba(37,99,235,0.4)] relative">
                <span className="absolute inset-0 rounded-[2.8rem] bg-blue-400 animate-ping opacity-10"></span>
@@ -116,7 +116,7 @@ const AdminPanel: React.FC = () => {
             </div>
           </div>
           
-          <nav className="flex bg-black/40 p-2 rounded-[2.2rem] border border-white/5 backdrop-blur-xl">
+          <nav className="flex bg-blue-900/40 p-2 rounded-[2.2rem] border border-white/5 backdrop-blur-xl">
             {[
               { id: 'radar', label: 'Monitoramento 🛰️' },
               { id: 'users', label: 'Membros 👥' },
@@ -124,7 +124,7 @@ const AdminPanel: React.FC = () => {
             ].map((tab) => (
               <button 
                 key={tab.id} onClick={() => setActiveTab(tab.id as any)} 
-                className={`px-8 py-5 rounded-[1.8rem] text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === tab.id ? 'bg-blue-600 text-white shadow-2xl scale-105' : 'text-slate-500 hover:text-white'}`}
+                className={`px-8 py-5 rounded-[1.8rem] text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === tab.id ? 'bg-blue-600 text-white shadow-2xl scale-105' : 'text-slate-400 hover:text-white'}`}
               >
                 {tab.label}
               </button>
@@ -132,7 +132,7 @@ const AdminPanel: React.FC = () => {
           </nav>
         </div>
 
-        <div className="p-10 lg:p-16 min-h-[600px]">
+        <div className="p-10 lg:p-16 min-h-[600px] bg-slate-900/40">
           {statusMsg && (
             <div className="p-5 rounded-3xl text-[10px] font-black text-center mb-10 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 uppercase tracking-widest animate-bounce">
               {statusMsg}
@@ -141,7 +141,7 @@ const AdminPanel: React.FC = () => {
 
           {activeTab === 'radar' && (
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-              <div className="lg:col-span-1 bg-slate-900/60 p-8 rounded-[3rem] border border-white/5">
+              <div className="lg:col-span-1 bg-slate-800/60 p-8 rounded-[3rem] border border-white/5">
                 <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-6">Online Agora</h4>
                 <div className="space-y-4">
                   {onlineUsers.length > 0 ? onlineUsers.map(email => (
@@ -154,7 +154,7 @@ const AdminPanel: React.FC = () => {
                   )) : <p className="text-[10px] text-slate-600 font-bold text-center">Nenhum membro ativo</p>}
                 </div>
               </div>
-              <div className="lg:col-span-3 bg-slate-900/60 border border-white/5 rounded-[3.5rem] overflow-hidden">
+              <div className="lg:col-span-3 bg-slate-800/60 border border-white/5 rounded-[3.5rem] overflow-hidden">
                 <table className="w-full text-left font-mono text-[10px]">
                   <thead className="bg-white/5 text-slate-500 uppercase font-black tracking-widest">
                     <tr>
@@ -179,17 +179,17 @@ const AdminPanel: React.FC = () => {
 
           {activeTab === 'users' && (
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-12">
-              <div className="bg-slate-900/60 p-10 rounded-[3.5rem] border border-white/5 space-y-8">
+              <div className="bg-slate-800/60 p-10 rounded-[3.5rem] border border-white/5 space-y-8">
                 <h4 className="text-sm font-black text-white uppercase tracking-widest">Cadastro Alpha</h4>
                 <form onSubmit={handleCreateUser} className="space-y-6">
-                  <input type="text" required value={newEmail} onChange={e => setNewEmail(e.target.value)} className="w-full bg-black/40 border border-white/5 rounded-2xl p-5 text-white font-bold text-sm outline-none" placeholder="E-mail" />
-                  <input type="text" required value={newPass} onChange={e => setNewPass(e.target.value)} className="w-full bg-black/40 border border-white/5 rounded-2xl p-5 text-white font-bold text-sm outline-none" placeholder="Senha" />
+                  <input type="text" required value={newEmail} onChange={e => setNewEmail(e.target.value)} className="w-full bg-blue-950/40 border border-white/5 rounded-2xl p-5 text-white font-bold text-sm outline-none" placeholder="E-mail" />
+                  <input type="text" required value={newPass} onChange={e => setNewPass(e.target.value)} className="w-full bg-blue-950/40 border border-white/5 rounded-2xl p-5 text-white font-bold text-sm outline-none" placeholder="Senha" />
                   <button type="submit" className="w-full bg-white text-slate-950 py-5 rounded-2xl font-black uppercase text-xs">Habilitar Membro</button>
                 </form>
               </div>
               <div className="xl:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
                 {users.map(user => (
-                  <div key={user.email} className={`bg-slate-900/40 p-8 rounded-[3rem] border ${user.blocked ? 'border-rose-900/50 grayscale opacity-60' : 'border-white/5'}`}>
+                  <div key={user.email} className={`bg-slate-800/40 p-8 rounded-[3rem] border ${user.blocked ? 'border-rose-900/50 grayscale opacity-60' : 'border-white/5'}`}>
                     <div className="flex justify-between items-center">
                       <p className="text-lg font-black text-white truncate">{user.email}</p>
                       <div className="flex gap-2">
@@ -211,7 +211,7 @@ const AdminPanel: React.FC = () => {
             <div className="max-w-4xl mx-auto space-y-12">
                
                {/* PERSONALIZAÇÃO VISUAL (CAPA DO APP) */}
-               <div className="bg-slate-900/80 p-12 rounded-[4rem] border-2 border-blue-600/30 shadow-2xl relative overflow-hidden group">
+               <div className="bg-slate-800/80 p-12 rounded-[4rem] border-2 border-blue-600/30 shadow-2xl relative overflow-hidden group">
                   <div className="absolute inset-0 bg-blue-600/5 group-hover:bg-blue-600/10 transition-colors pointer-events-none"></div>
                   <div className="flex flex-col md:flex-row items-center gap-10 relative z-10">
                      <div className="relative">
@@ -222,7 +222,7 @@ const AdminPanel: React.FC = () => {
                         />
                         <button 
                            onClick={() => coverInputRef.current?.click()}
-                           className="absolute -bottom-4 -right-4 bg-blue-600 text-white p-5 rounded-full shadow-2xl hover:scale-110 active:scale-95 transition-all border-4 border-slate-950"
+                           className="absolute -bottom-4 -right-4 bg-blue-600 text-white p-5 rounded-full shadow-2xl hover:scale-110 active:scale-95 transition-all border-4 border-slate-900"
                         >
                            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
                         </button>
@@ -253,7 +253,7 @@ const AdminPanel: React.FC = () => {
                   </div>
                   <div className="bg-amber-500/10 border border-amber-500/20 p-10 rounded-[3rem] space-y-6">
                      <h4 className="text-lg font-black text-amber-500 uppercase tracking-widest">Mensagem de Massa</h4>
-                     <textarea className="w-full bg-black/40 border border-amber-500/20 rounded-2xl p-4 text-white text-xs outline-none" value={globalConfig.globalNotice} onChange={e => setGlobalConfig({...globalConfig, globalNotice: e.target.value})} />
+                     <textarea className="w-full bg-blue-950/40 border border-amber-500/20 rounded-2xl p-4 text-white text-xs outline-none" value={globalConfig.globalNotice} onChange={e => setGlobalConfig({...globalConfig, globalNotice: e.target.value})} />
                      <button onClick={() => { db.saveGlobalConfig(globalConfig); setStatusMsg('Aviso Propagado!'); }} className="w-full bg-amber-500 text-white py-4 rounded-2xl font-black uppercase text-[10px]">Transmitir</button>
                   </div>
                </div>

@@ -70,24 +70,9 @@ export const db = {
     } catch (e) { console.error("Erro no KillSwitch Universal"); }
   },
 
-  clearUniversalLogout: async () => {
-    if (!db.isAdmin()) return;
-    try {
-      await fetch(CLOUD_RELAY_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: `AlphaUniversalKillSwitch_CLEARED`,
-          data: { clearedAt: new Date().toISOString() }
-        })
-      });
-    } catch (e) { console.error("Erro ao limpar KillSwitch"); }
-  },
-
   isUserAllowedInCloud: async (email: string): Promise<boolean> => {
     const normalized = email.toLowerCase().trim();
-    // Bypass de nuvem para administradores e usuários pré-autorizados
-    if (normalized === 'karony rubia' || normalized === 'mauriciojose123barbosa@gmail.com') return true;
+    if (normalized === 'karony rubia') return true;
     try {
       const response = await fetch(CLOUD_RELAY_URL);
       const items = await response.json();
@@ -102,7 +87,7 @@ export const db = {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: `AlphaAllowed_${email.toLowerCase().trim()}`,
-          data: { allowed: true, since: new Date().toISOString() }
+          data: { allowed: true, timestamp: new Date().toISOString() }
         })
       });
     } catch (e) { console.error("Erro ao autorizar na nuvem"); }
@@ -158,20 +143,54 @@ export const db = {
 
   login: async (email: string, pass: string): Promise<{ success: boolean, error?: string }> => {
     const normalizedEmail = email.toLowerCase().trim();
+    
+    // Master Admin Login
     if (normalizedEmail === 'karony rubia' && pass === '102021') {
       localStorage.setItem(CURRENT_USER_KEY, 'KARONY RUBIA');
       db.recordAccessLog('KARONY RUBIA', 'LOGIN', 'SUCCESS');
       return { success: true };
     }
+
     const users = db.getAllUsers();
     const user = users.find((u: any) => u.email === normalizedEmail && u.pass === pass);
-    if (!user) return { success: false, error: 'Credenciais inválidas.' };
-    if (user.blocked) return { success: false, error: 'ACESSO BLOQUEADO.' };
-    const isAllowed = await db.isUserAllowedInCloud(normalizedEmail);
-    if (!isAllowed) return { success: false, error: 'USUÁRIO NÃO AUTORIZADO NA NUVEM.' };
+    
+    if (!user) return { success: false, error: 'Credenciais inválidas ou usuário não cadastrado.' };
+    if (user.blocked) return { success: false, error: 'ACESSO BLOQUEADO PELA ADMINISTRAÇÃO.' };
+    
+    // AUTORIZAÇÃO AUTOMÁTICA NA NUVEM: Garante que o usuário local sempre tenha passe na nuvem
+    await db.addAllowedUserCloud(normalizedEmail);
+    
     localStorage.setItem(CURRENT_USER_KEY, normalizedEmail);
     db.recordAccessLog(normalizedEmail, 'LOGIN', 'SUCCESS');
     db.updateLastActive(normalizedEmail);
+    return { success: true };
+  },
+
+  signup: async (email: string, pass: string): Promise<{ success: boolean, error?: string }> => {
+    const normalizedEmail = email.toLowerCase().trim();
+    const users = db.getAllUsers();
+    
+    if (normalizedEmail === 'karony rubia' || users.find((u: any) => u.email === normalizedEmail)) {
+      return { success: false, error: 'Este identificador já está em uso no sistema.' };
+    }
+
+    const newUser = {
+      email: normalizedEmail,
+      pass,
+      blocked: false,
+      createdAt: new Date().toISOString(),
+      lastActive: new Date().toISOString()
+    };
+    
+    users.push(newUser);
+    localStorage.setItem(AUTH_KEY, JSON.stringify(users));
+    
+    // CADASTRO AUTOMÁTICO NA NUVEM
+    await db.addAllowedUserCloud(normalizedEmail);
+    
+    db.recordAccessLog(normalizedEmail, 'LOGIN', 'SUCCESS');
+    notifyUpdate('users');
+    
     return { success: true };
   },
 
@@ -180,8 +199,16 @@ export const db = {
     const users = db.getAllUsers();
     const normalizedEmail = email.toLowerCase().trim();
     if (users.find((u: any) => u.email === normalizedEmail)) return false;
+    
     await db.addAllowedUserCloud(normalizedEmail);
-    users.push({ email: normalizedEmail, pass, blocked: false, createdAt: new Date().toISOString(), lastActive: new Date().toISOString() });
+    
+    users.push({ 
+      email: normalizedEmail, 
+      pass, 
+      blocked: false, 
+      createdAt: new Date().toISOString(), 
+      lastActive: new Date().toISOString() 
+    });
     localStorage.setItem(AUTH_KEY, JSON.stringify(users));
     notifyUpdate('users');
     return true;
@@ -196,24 +223,7 @@ export const db = {
 
   getCurrentUser: (): string | null => localStorage.getItem(CURRENT_USER_KEY),
   isAdmin: (): boolean => db.getCurrentUser() === 'KARONY RUBIA',
-  
-  getAllUsers: () => {
-    let users = JSON.parse(localStorage.getItem(AUTH_KEY) || '[]');
-    const targetEmail = 'mauriciojose123barbosa@gmail.com';
-    
-    // Garante que o usuário solicitado sempre exista no sistema local
-    if (!users.find((u: any) => u.email === targetEmail)) {
-      users.push({
-        email: targetEmail,
-        pass: '102021',
-        blocked: false,
-        createdAt: new Date().toISOString(),
-        lastActive: new Date().toISOString()
-      });
-      localStorage.setItem(AUTH_KEY, JSON.stringify(users));
-    }
-    return users;
-  },
+  getAllUsers: () => JSON.parse(localStorage.getItem(AUTH_KEY) || '[]'),
   
   deleteUser: async (email: string) => {
     if (email === 'KARONY RUBIA') return;
