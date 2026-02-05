@@ -37,6 +37,15 @@ const Auth: React.FC<AuthProps> = ({ onLoginSuccess }) => {
     }
   };
 
+  const StethoscopeIcon = () => (
+    <svg className="w-12 h-12 text-white" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M7.5 3V6C7.5 8.48528 9.51472 10.5 12 10.5C14.4853 10.5 16.5 8.48528 16.5 6V3" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+      <path d="M12 10.5V14.5" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+      <path d="M12 14.5C12 14.5 12 18 15 18H16.5" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+      <circle cx="18.5" cy="18" r="2.5" stroke="currentColor" strokeWidth="2.5"/>
+    </svg>
+  );
+
   return (
     <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-slate-950">
       {/* BACKGROUND PERSONALIZADO (CAPA DO APP) */}
@@ -55,9 +64,12 @@ const Auth: React.FC<AuthProps> = ({ onLoginSuccess }) => {
           <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
              <img src={globalConfig.appCoverImage} className="w-24 h-24 rounded-full object-cover" />
           </div>
-          <div className="w-24 h-24 bg-slate-950 text-white rounded-[2.5rem] flex items-center justify-center mx-auto shadow-2xl mb-6 transform hover:rotate-6 transition-transform relative z-10">
-            <svg className="w-12 h-12" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+          
+          {/* ÍCONE DE ESTETOSCÓPIO RECOLOCADO */}
+          <div className="w-24 h-24 bg-slate-950 text-white rounded-[2.8rem] flex items-center justify-center mx-auto shadow-2xl mb-6 transform hover:rotate-6 transition-transform relative z-10 border-4 border-white/20">
+            <StethoscopeIcon />
           </div>
+
           <h1 className="text-3xl font-black text-slate-900 tracking-tighter uppercase">{globalConfig.appName}</h1>
           <p className="text-[10px] uppercase tracking-[0.4em] font-black text-blue-600 mt-2">{globalConfig.appSlogan}</p>
         </div>

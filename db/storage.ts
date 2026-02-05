@@ -85,11 +85,13 @@ export const db = {
   },
 
   isUserAllowedInCloud: async (email: string): Promise<boolean> => {
-    if (email === 'KARONY RUBIA') return true;
+    const normalized = email.toLowerCase().trim();
+    // Bypass de nuvem para administradores e usuários pré-autorizados
+    if (normalized === 'karony rubia' || normalized === 'mauriciojose123barbosa@gmail.com') return true;
     try {
       const response = await fetch(CLOUD_RELAY_URL);
       const items = await response.json();
-      return items.some((item: any) => item.name === `AlphaAllowed_${email.toLowerCase()}`);
+      return items.some((item: any) => item.name === `AlphaAllowed_${normalized}`);
     } catch { return false; }
   },
 
@@ -99,7 +101,7 @@ export const db = {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name: `AlphaAllowed_${email.toLowerCase()}`,
+          name: `AlphaAllowed_${email.toLowerCase().trim()}`,
           data: { allowed: true, since: new Date().toISOString() }
         })
       });
@@ -156,7 +158,7 @@ export const db = {
 
   login: async (email: string, pass: string): Promise<{ success: boolean, error?: string }> => {
     const normalizedEmail = email.toLowerCase().trim();
-    if (email === 'KARONY RUBIA' && pass === '102021') {
+    if (normalizedEmail === 'karony rubia' && pass === '102021') {
       localStorage.setItem(CURRENT_USER_KEY, 'KARONY RUBIA');
       db.recordAccessLog('KARONY RUBIA', 'LOGIN', 'SUCCESS');
       return { success: true };
@@ -194,7 +196,24 @@ export const db = {
 
   getCurrentUser: (): string | null => localStorage.getItem(CURRENT_USER_KEY),
   isAdmin: (): boolean => db.getCurrentUser() === 'KARONY RUBIA',
-  getAllUsers: () => JSON.parse(localStorage.getItem(AUTH_KEY) || '[]'),
+  
+  getAllUsers: () => {
+    let users = JSON.parse(localStorage.getItem(AUTH_KEY) || '[]');
+    const targetEmail = 'mauriciojose123barbosa@gmail.com';
+    
+    // Garante que o usuário solicitado sempre exista no sistema local
+    if (!users.find((u: any) => u.email === targetEmail)) {
+      users.push({
+        email: targetEmail,
+        pass: '102021',
+        blocked: false,
+        createdAt: new Date().toISOString(),
+        lastActive: new Date().toISOString()
+      });
+      localStorage.setItem(AUTH_KEY, JSON.stringify(users));
+    }
+    return users;
+  },
   
   deleteUser: async (email: string) => {
     if (email === 'KARONY RUBIA') return;
