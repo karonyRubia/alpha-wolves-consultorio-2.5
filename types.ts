@@ -25,7 +25,7 @@ export interface GlobalConfig {
   appSlogan: string;
   primaryColor: string;
   accentColor: string;
-  appCoverImage: string; // Nova propriedade para capa do app
+  appCoverImage: string;
   globalNotice: string;
   rubiaBaseInstruction: string;
   maintenanceMode: boolean;
@@ -67,6 +67,7 @@ export interface Appointment {
   type: string;
   status: 'SCHEDULED' | 'COMPLETED' | 'CANCELLED';
   amount: number;
+  reminderSent?: boolean; // Novo controle de lembrete
 }
 
 export interface FinancialRecord {

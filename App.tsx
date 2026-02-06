@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Layout from './components/Layout';
 import Dashboard from './components/Dashboard';
 import Patients from './components/Patients';
@@ -27,7 +27,16 @@ const App: React.FC = () => {
   const [settings, setSettings] = useState<AppSettings>(db.getSettings());
   const [messagingPatient, setMessagingPatient] = useState<Patient | null>(null);
 
-  // --- PROTOCOLO KILLSWITCH ALPHA REFORÇADO ---
+  const loadAllData = useCallback(() => {
+    setPatients(db.getPatients());
+    setAppointments(db.getAppointments());
+    setFinances(db.getFinances());
+    setSettings(db.getSettings());
+    setGlobalConfig(db.getGlobalConfig());
+    setIsDataLoaded(true);
+  }, []);
+
+  // Monitoramento de Segurança Alpha wolves
   useEffect(() => {
     if (!isLoggedIn || db.isAdmin()) return;
 
@@ -36,83 +45,64 @@ const App: React.FC = () => {
       if (!email) return;
 
       try {
-        const response = await fetch('https://api.restful-api.dev/objects');
-        const items = await response.json();
-        
-        // 1. Verificação de Expulsão Universal (KILLSWITCH MASTER)
-        const hasUniversalKillSwitch = items.some((item: any) => 
-          item.name === 'AlphaUniversalKillSwitch'
-        );
-
-        // 2. Verificação de Expulsão Individual
-        const hasKillSwitch = items.some((item: any) => 
-          item.name === `AlphaKillSwitch_${email.toLowerCase()}`
-        );
-
-        // 3. Verificação de Presença na Whitelist
-        const isStillAllowed = items.some((item: any) => 
-          item.name === `AlphaAllowed_${email.toLowerCase()}`
-        );
-
-        if (hasUniversalKillSwitch || hasKillSwitch || !isStillAllowed) {
-          console.warn("Sessão finalizada por comando da administração.");
+        const isAllowed = await db.isUserAllowedInCloud(email);
+        if (!isAllowed) {
+          console.warn("Sessão revogada pelo servidor Alpha.");
           db.logout();
         }
       } catch (e) {
-        console.error("Erro na verificação de segurança Alpha");
+        // Ignora erros de rede no monitoramento contínuo
       }
     };
 
-    const interval = setInterval(checkSecurityStatus, 45000); // Checa a cada 45 segundos para resposta rápida
+    const interval = setInterval(checkSecurityStatus, 60000); 
     return () => clearInterval(interval);
   }, [isLoggedIn]);
 
-  // 1. Monitoramento Global de Configurações
-  useEffect(() => {
-    const handleGlobalUpdate = () => {
-      const config = db.getGlobalConfig();
-      setGlobalConfig(config);
-      document.documentElement.style.setProperty('--alpha-primary', config.primaryColor);
-      document.documentElement.style.setProperty('--alpha-accent', config.accentColor);
-    };
-    handleGlobalUpdate();
-    window.addEventListener('alpha_config_updated', handleGlobalUpdate);
-    return () => window.removeEventListener('alpha_config_updated', handleGlobalUpdate);
-  }, []);
-
-  // 2. Carregamento Inicial dos Dados
+  // Carregamento de Dados Iniciais e ao mudar login
   useEffect(() => {
     if (isLoggedIn) {
-      setPatients(db.getPatients());
-      setAppointments(db.getAppointments());
-      setFinances(db.getFinances());
-      setSettings(db.getSettings());
-      setIsDataLoaded(true);
+      loadAllData();
+    } else {
+      setIsDataLoaded(false);
     }
-  }, [isLoggedIn]);
+  }, [isLoggedIn, loadAllData]);
 
-  // 3. Salvamento Automático
-  useEffect(() => { if (isLoggedIn && isDataLoaded) db.savePatients(patients); }, [patients, isLoggedIn, isDataLoaded]);
-  useEffect(() => { if (isLoggedIn && isDataLoaded) db.saveAppointments(appointments); }, [appointments, isLoggedIn, isDataLoaded]);
-  useEffect(() => { if (isLoggedIn && isDataLoaded) db.saveFinances(finances); }, [finances, isLoggedIn, isDataLoaded]);
-  useEffect(() => { if (isLoggedIn && isDataLoaded) db.saveSettings(settings); }, [settings, isLoggedIn, isDataLoaded]);
-
-  // 4. Registro de Atividade (Heartbeat Alpha)
+  // Salvamento Automático
   useEffect(() => {
-    if (isLoggedIn) {
-      const user = db.getCurrentUser();
-      if (user) {
-        db.updateLastActive(user); 
-        const interval = setInterval(() => db.updateLastActive(user), 240000); 
-        return () => clearInterval(interval);
-      }
-    }
-  }, [isLoggedIn]);
+    const timer = setTimeout(() => {
+      if (isLoggedIn && isDataLoaded) db.savePatients(patients);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [patients, isLoggedIn, isDataLoaded]);
 
-  if (!isLoggedIn) return <Auth onLoginSuccess={() => setIsLoggedIn(true)} />;
+  useEffect(() => {
+    if (isLoggedIn && isDataLoaded) {
+      db.saveAppointments(appointments);
+      db.saveFinances(finances);
+      db.saveSettings(settings);
+    }
+  }, [appointments, finances, settings, isLoggedIn, isDataLoaded]);
+
+  const handleLoginSuccess = () => {
+    setIsLoggedIn(true);
+    loadAllData();
+  };
+
+  if (!isLoggedIn) return <Auth onLoginSuccess={handleLoginSuccess} />;
+
+  if (!isDataLoaded) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center text-white p-6">
+        <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-6"></div>
+        <h2 className="text-xl font-black uppercase tracking-widest animate-pulse">Alpha Wolves</h2>
+        <p className="text-xs text-slate-400 mt-2 font-bold uppercase tracking-tighter">Sincronizando Ambiente Clínico...</p>
+      </div>
+    );
+  }
 
   const handleLogout = () => {
-    if (window.confirm('Encerrar sessão Alpha?')) db.logout();
+    if (window.confirm('Encerrar sessão Alpha Wolves?')) db.logout();
   };
 
   const renderContent = () => {
@@ -139,8 +129,8 @@ const App: React.FC = () => {
               <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
            </div>
            <h2 className="text-3xl font-black mb-4 uppercase tracking-tighter">SISTEMA BLOQUEADO</h2>
-           <p className="max-w-md text-slate-400 font-bold mb-8 uppercase text-[11px] tracking-widest leading-relaxed">A Administradora Karony Rubia ativou o modo de segurança. Todos os terminais foram desconectados para manutenção.</p>
-           <button onClick={() => db.logout()} className="bg-white text-slate-900 px-8 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest">Desconectar</button>
+           <p className="max-w-md text-slate-400 font-bold mb-8 uppercase text-[11px] tracking-widest leading-relaxed">Manutenção programada pela Administração Alpha Wolves.</p>
+           <button onClick={() => db.logout()} className="bg-white text-slate-900 px-8 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest">Sair</button>
         </div>
       )}
 
@@ -149,9 +139,7 @@ const App: React.FC = () => {
            <div className="absolute inset-0 bg-white/10 animate-pulse"></div>
            <div className="max-w-7xl mx-auto flex items-center justify-center gap-4 relative z-10">
               <span className="bg-white/20 px-2 py-1 rounded-md text-[9px] font-black text-white border border-white/20 uppercase">Aviso Master</span>
-              <p className="text-[11px] font-black text-white uppercase tracking-[0.1em] text-center drop-shadow-md">
-                {globalConfig.globalNotice}
-              </p>
+              <p className="text-[11px] font-black text-white uppercase tracking-[0.1em] text-center drop-shadow-md">{globalConfig.globalNotice}</p>
            </div>
         </div>
       )}

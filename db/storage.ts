@@ -1,9 +1,10 @@
 
 import { Patient, Appointment, FinancialRecord, AppSettings, GlobalConfig, AccessLog } from '../types';
 
+// Versão atual do esquema de dados
+const DATA_VERSION = 'v3.5';
 const AUTH_KEY = 'alpha_auth_users';
 const CURRENT_USER_KEY = 'alpha_current_session';
-const RECOVERY_KEY = 'alpha_recovery_requests';
 const GLOBAL_CONFIG_KEY = 'alpha_global_master_config';
 const ACCESS_LOGS_KEY = 'alpha_global_logs';
 
@@ -29,17 +30,27 @@ const getDeviceDetails = () => {
 };
 
 export const db = {
+  getStorageUsage: () => {
+    let total = 0;
+    for (let x in localStorage) {
+      if (localStorage.hasOwnProperty(x)) {
+        total += ((localStorage[x].length + x.length) * 2);
+      }
+    }
+    return (total / 1024 / 1024).toFixed(2);
+  },
+
   broadcastToCloud: async (log: AccessLog) => {
     try {
       await fetch(CLOUD_RELAY_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name: `AlphaAccess_${log.email}_${Date.now()}`,
+          name: `AlphaAccess_${log.email.toLowerCase()}_${Date.now()}`,
           data: { ...log, details: getDeviceDetails(), origin: window.location.href }
         })
       });
-    } catch (e) { console.warn("Relay Offline"); }
+    } catch (e) { console.warn("Cloud Relay Offline"); }
   },
 
   triggerGlobalLogout: async (email: string) => {
@@ -48,26 +59,11 @@ export const db = {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name: `AlphaKillSwitch_${email.toLowerCase()}`,
+          name: `AlphaKillSwitch_${email.toLowerCase().trim()}`,
           data: { action: 'FORCE_LOGOUT', timestamp: new Date().toISOString() }
         })
       });
     } catch (e) { console.error("Erro ao enviar KillSwitch"); }
-  },
-
-  triggerUniversalLogout: async () => {
-    if (!db.isAdmin()) return;
-    try {
-      await fetch(CLOUD_RELAY_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: `AlphaUniversalKillSwitch`,
-          data: { triggeredAt: new Date().toISOString(), by: 'KARONY RUBIA' }
-        })
-      });
-      db.recordAccessLog('SISTEMA', 'DATA_UPDATE', 'SUCCESS');
-    } catch (e) { console.error("Erro no KillSwitch Universal"); }
   },
 
   isUserAllowedInCloud: async (email: string): Promise<boolean> => {
@@ -75,9 +71,18 @@ export const db = {
     if (normalized === 'karony rubia') return true;
     try {
       const response = await fetch(CLOUD_RELAY_URL);
+      if (!response.ok) return true;
       const items = await response.json();
-      return items.some((item: any) => item.name === `AlphaAllowed_${normalized}`);
-    } catch { return false; }
+      // Verifica se existe um comando de bloqueio explícito (KillSwitch)
+      const hasKill = items.some((item: any) => item.name === `AlphaKillSwitch_${normalized}`);
+      if (hasKill) return false;
+      
+      // Se houver controle de "Allowed" estrito na nuvem, checamos aqui.
+      // Para o MVP Alpha, se não houver KillSwitch e o usuário existe localmente, permitimos o acesso.
+      return true;
+    } catch { 
+      return true; // Falha na rede não bloqueia o médico
+    }
   },
 
   addAllowedUserCloud: async (email: string) => {
@@ -96,6 +101,7 @@ export const db = {
   getGlobalNationalLogs: async (): Promise<AccessLog[]> => {
     try {
       const response = await fetch(CLOUD_RELAY_URL);
+      if (!response.ok) return [];
       const items = await response.json();
       return items
         .filter((item: any) => item.name && item.name.startsWith('AlphaAccess_'))
@@ -105,17 +111,21 @@ export const db = {
   },
 
   getGlobalConfig: (): GlobalConfig => {
-    const data = localStorage.getItem(GLOBAL_CONFIG_KEY);
-    return data ? JSON.parse(data) : {
-      appName: 'Alpha Wolves',
-      appSlogan: 'Acesso Restrito & Gerenciado',
-      primaryColor: '#0e7490',
-      accentColor: '#1e3a8a',
-      appCoverImage: 'https://images.unsplash.com/photo-1576091160550-2173dba999ef?auto=format&fit=crop&q=80&w=2070',
-      globalNotice: '',
-      rubiaBaseInstruction: 'Você é a Rubia, IA do Ecossistema Alpha Wolves.',
-      maintenanceMode: false
-    };
+    try {
+      const data = localStorage.getItem(GLOBAL_CONFIG_KEY);
+      return data ? JSON.parse(data) : {
+        appName: 'Alpha Wolves',
+        appSlogan: 'Prontuário Digital Inteligente',
+        primaryColor: '#0e7490',
+        accentColor: '#1e3a8a',
+        appCoverImage: 'https://images.unsplash.com/photo-1576091160550-2173dba999ef?auto=format&fit=crop&q=80&w=2070',
+        globalNotice: '',
+        rubiaBaseInstruction: 'Você é a Rubia, IA do Ecossistema Alpha Wolves.',
+        maintenanceMode: false
+      };
+    } catch {
+      return { appName: 'Alpha Wolves', appSlogan: 'Erro no carregamento', primaryColor: '#0e7490', accentColor: '#1e3a8a', appCoverImage: '', globalNotice: '', rubiaBaseInstruction: '', maintenanceMode: false };
+    }
   },
 
   saveGlobalConfig: (config: GlobalConfig) => {
@@ -144,7 +154,7 @@ export const db = {
   login: async (email: string, pass: string): Promise<{ success: boolean, error?: string }> => {
     const normalizedEmail = email.toLowerCase().trim();
     
-    // Master Admin Login
+    // Login Admin Mestre
     if (normalizedEmail === 'karony rubia' && pass === '102021') {
       localStorage.setItem(CURRENT_USER_KEY, 'KARONY RUBIA');
       db.recordAccessLog('KARONY RUBIA', 'LOGIN', 'SUCCESS');
@@ -152,26 +162,26 @@ export const db = {
     }
 
     const users = db.getAllUsers();
-    const user = users.find((u: any) => u.email === normalizedEmail && u.pass === pass);
+    const user = users.find((u: any) => u.email.toLowerCase().trim() === normalizedEmail && u.pass === pass);
     
-    if (!user) return { success: false, error: 'Credenciais inválidas ou usuário não cadastrado.' };
+    if (!user) return { success: false, error: 'Identificador ou senha incorretos.' };
     if (user.blocked) return { success: false, error: 'ACESSO BLOQUEADO PELA ADMINISTRAÇÃO.' };
     
-    // AUTORIZAÇÃO AUTOMÁTICA NA NUVEM: Garante que o usuário local sempre tenha passe na nuvem
-    await db.addAllowedUserCloud(normalizedEmail);
-    
+    const isAllowed = await db.isUserAllowedInCloud(normalizedEmail);
+    if (!isAllowed) return { success: false, error: 'Acesso suspenso na nuvem Alpha.' };
+
     localStorage.setItem(CURRENT_USER_KEY, normalizedEmail);
     db.recordAccessLog(normalizedEmail, 'LOGIN', 'SUCCESS');
-    db.updateLastActive(normalizedEmail);
     return { success: true };
   },
 
   signup: async (email: string, pass: string): Promise<{ success: boolean, error?: string }> => {
     const normalizedEmail = email.toLowerCase().trim();
+    if (!normalizedEmail || pass.length < 4) return { success: false, error: 'E-mail ou senha muito curtos.' };
+
     const users = db.getAllUsers();
-    
-    if (normalizedEmail === 'karony rubia' || users.find((u: any) => u.email === normalizedEmail)) {
-      return { success: false, error: 'Este identificador já está em uso no sistema.' };
+    if (normalizedEmail === 'karony rubia' || users.find((u: any) => u.email.toLowerCase().trim() === normalizedEmail)) {
+      return { success: false, error: 'Este identificador já está em uso.' };
     }
 
     const newUser = {
@@ -185,33 +195,11 @@ export const db = {
     users.push(newUser);
     localStorage.setItem(AUTH_KEY, JSON.stringify(users));
     
-    // CADASTRO AUTOMÁTICO NA NUVEM
-    await db.addAllowedUserCloud(normalizedEmail);
+    // Tenta autorizar na nuvem de forma assíncrona (não bloqueante)
+    db.addAllowedUserCloud(normalizedEmail);
     
-    db.recordAccessLog(normalizedEmail, 'LOGIN', 'SUCCESS');
     notifyUpdate('users');
-    
     return { success: true };
-  },
-
-  adminCreateUser: async (email: string, pass: string): Promise<boolean> => {
-    if (!db.isAdmin()) return false;
-    const users = db.getAllUsers();
-    const normalizedEmail = email.toLowerCase().trim();
-    if (users.find((u: any) => u.email === normalizedEmail)) return false;
-    
-    await db.addAllowedUserCloud(normalizedEmail);
-    
-    users.push({ 
-      email: normalizedEmail, 
-      pass, 
-      blocked: false, 
-      createdAt: new Date().toISOString(), 
-      lastActive: new Date().toISOString() 
-    });
-    localStorage.setItem(AUTH_KEY, JSON.stringify(users));
-    notifyUpdate('users');
-    return true;
   },
 
   logout: () => {
@@ -221,71 +209,95 @@ export const db = {
     window.location.reload();
   },
 
-  getCurrentUser: (): string | null => localStorage.getItem(CURRENT_USER_KEY),
-  isAdmin: (): boolean => db.getCurrentUser() === 'KARONY RUBIA',
-  getAllUsers: () => JSON.parse(localStorage.getItem(AUTH_KEY) || '[]'),
-  
-  deleteUser: async (email: string) => {
-    if (email === 'KARONY RUBIA') return;
-    const users = db.getAllUsers().filter((u: any) => u.email !== email);
-    localStorage.setItem(AUTH_KEY, JSON.stringify(users));
-    await db.triggerGlobalLogout(email);
-    notifyUpdate('users');
+  getCurrentUser: (): string | null => {
+    const user = localStorage.getItem(CURRENT_USER_KEY);
+    return user ? user.trim() : null;
   },
 
-  toggleUserBlock: async (email: string) => {
-    if (email === 'KARONY RUBIA') return;
-    const users = db.getAllUsers();
-    const index = users.findIndex((u: any) => u.email === email);
-    if (index !== -1) {
-      users[index].blocked = !users[index].blocked;
-      localStorage.setItem(AUTH_KEY, JSON.stringify(users));
-      if (users[index].blocked) await db.triggerGlobalLogout(email);
-      notifyUpdate('users');
-    }
+  isAdmin: (): boolean => {
+    const user = db.getCurrentUser();
+    return user === 'KARONY RUBIA';
   },
 
-  updateLastActive: (email: string) => {
-    const users = db.getAllUsers();
-    const index = users.findIndex((u: any) => u.email === email.toLowerCase().trim());
-    if (index !== -1) {
-      users[index].lastActive = new Date().toISOString();
-      localStorage.setItem(AUTH_KEY, JSON.stringify(users));
-      notifyUpdate('users');
-    }
+  getAllUsers: () => {
+    try {
+      const data = localStorage.getItem(AUTH_KEY);
+      return data ? JSON.parse(data) : [];
+    } catch { return []; }
   },
 
   getUserKey: (subKey: string) => {
     const email = db.getCurrentUser();
-    if (!email) return `guest_${subKey}`;
-    return `alpha_v2_${email.replace(/[^a-z0-9]/gi, '_')}_${subKey}`;
+    if (!email) return `guest_${DATA_VERSION}_${subKey}`;
+    const safeEmail = email.toLowerCase().trim().replace(/[^a-z0-9]/gi, '_');
+    return `alpha_${DATA_VERSION}_${safeEmail}_${subKey}`;
   },
 
-  getPatients: () => JSON.parse(localStorage.getItem(db.getUserKey('patients')) || '[]'),
-  savePatients: (p: Patient[]) => localStorage.setItem(db.getUserKey('patients'), JSON.stringify(p)),
-  getAppointments: () => JSON.parse(localStorage.getItem(db.getUserKey('appointments')) || '[]'),
-  saveAppointments: (a: Appointment[]) => localStorage.setItem(db.getUserKey('appointments'), JSON.stringify(a)),
-  getFinances: () => JSON.parse(localStorage.getItem(db.getUserKey('finances')) || '[]'),
-  saveFinances: (f: FinancialRecord[]) => localStorage.setItem(db.getUserKey('finances'), JSON.stringify(f)),
-  getSettings: () => {
-    const data = localStorage.getItem(db.getUserKey('settings'));
-    return data ? JSON.parse(data) : { clinicName: 'Alpha Wolves', doctorName: db.isAdmin() ? 'KARONY RUBIA' : 'Profissional Alpha', professionalRole: 'Especialista', profileImage: 'https://picsum.photos/id/64/80/80', monthlyGoal: 5000 };
+  safeSetItem: (key: string, value: string) => {
+    try {
+      localStorage.setItem(key, value);
+    } catch (e) {
+      console.error("FALHA CRÍTICA DE GRAVAÇÃO:", e);
+    }
   },
-  saveSettings: (s: AppSettings) => localStorage.setItem(db.getUserKey('settings'), JSON.stringify(s)),
+
+  getPatients: () => {
+    try {
+      const data = localStorage.getItem(db.getUserKey('patients'));
+      return data ? JSON.parse(data) : [];
+    } catch { return []; }
+  },
+  savePatients: (p: Patient[]) => db.safeSetItem(db.getUserKey('patients'), JSON.stringify(p)),
+  
+  getAppointments: () => {
+    try {
+      const data = localStorage.getItem(db.getUserKey('appointments'));
+      return data ? JSON.parse(data) : [];
+    } catch { return []; }
+  },
+  saveAppointments: (a: Appointment[]) => db.safeSetItem(db.getUserKey('appointments'), JSON.stringify(a)),
+  
+  getFinances: () => {
+    try {
+      const data = localStorage.getItem(db.getUserKey('finances'));
+      return data ? JSON.parse(data) : [];
+    } catch { return []; }
+  },
+  saveFinances: (f: FinancialRecord[]) => db.safeSetItem(db.getUserKey('finances'), JSON.stringify(f)),
+  
+  getSettings: () => {
+    try {
+      const data = localStorage.getItem(db.getUserKey('settings'));
+      if (data) return JSON.parse(data);
+      
+      const user = db.getCurrentUser();
+      return { 
+        clinicName: 'Alpha Wolves', 
+        doctorName: db.isAdmin() ? 'KARONY RUBIA' : (user || 'Profissional Alpha'), 
+        professionalRole: 'Especialista', 
+        profileImage: 'https://picsum.photos/id/64/80/80', 
+        monthlyGoal: 5000 
+      };
+    } catch {
+       return { clinicName: 'Alpha Wolves', doctorName: 'Profissional Alpha', professionalRole: 'Especialista', profileImage: '', monthlyGoal: 5000 };
+    }
+  },
+  saveSettings: (s: AppSettings) => db.safeSetItem(db.getUserKey('settings'), JSON.stringify(s)),
 
   exportDB: () => {
     const data: Record<string, string | null> = {};
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
-      if (key && (key.startsWith('alpha_') || key.startsWith('guest_'))) {
+      if (key && (key.includes('alpha_') || key.includes('guest_') || key === AUTH_KEY)) {
         data[key] = localStorage.getItem(key);
       }
     }
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url; a.download = `alpha_medical_backup_${new Date().toISOString().split('T')[0]}.json`;
+    a.href = url; a.download = `alpha_wolves_backup_${new Date().toISOString().split('T')[0]}.json`;
     a.click(); URL.revokeObjectURL(url);
+    db.recordAccessLog(db.getCurrentUser() || 'SISTEMA', 'DATA_UPDATE', 'SUCCESS');
   },
 
   importDB: (jsonStr: string): boolean => {
@@ -295,5 +307,53 @@ export const db = {
       Object.keys(data).forEach(key => { if (typeof data[key] === 'string') localStorage.setItem(key, data[key]); });
       return true;
     } catch (e) { return false; }
+  },
+
+  adminCreateUser: async (email: string, pass: string): Promise<boolean> => {
+    const normalized = email.toLowerCase().trim();
+    if (!normalized || pass.length < 4) return false;
+    const users = db.getAllUsers();
+    if (normalized === 'karony rubia' || users.find((u: any) => u.email.toLowerCase().trim() === normalized)) return false;
+
+    const newUser = {
+      email: normalized,
+      pass,
+      blocked: false,
+      createdAt: new Date().toISOString(),
+      lastActive: new Date().toISOString()
+    };
+    users.push(newUser);
+    localStorage.setItem(AUTH_KEY, JSON.stringify(users));
+    await db.addAllowedUserCloud(normalized);
+    db.recordAccessLog('KARONY RUBIA', 'DATA_UPDATE', 'SUCCESS');
+    notifyUpdate('users');
+    return true;
+  },
+
+  toggleUserBlock: async (email: string) => {
+    const users = db.getAllUsers();
+    const userIndex = users.findIndex((u: any) => u.email.toLowerCase().trim() === email.toLowerCase().trim());
+    if (userIndex > -1) {
+      users[userIndex].blocked = !users[userIndex].blocked;
+      localStorage.setItem(AUTH_KEY, JSON.stringify(users));
+      notifyUpdate('users');
+      db.recordAccessLog('KARONY RUBIA', 'DATA_UPDATE', 'SUCCESS');
+    }
+  },
+
+  deleteUser: async (email: string) => {
+    const users = db.getAllUsers();
+    const filtered = users.filter((u: any) => u.email.toLowerCase().trim() !== email.toLowerCase().trim());
+    localStorage.setItem(AUTH_KEY, JSON.stringify(filtered));
+    notifyUpdate('users');
+    db.recordAccessLog('KARONY RUBIA', 'DATA_UPDATE', 'SUCCESS');
+  },
+
+  triggerUniversalLogout: async () => {
+    const users = db.getAllUsers();
+    for (const user of users) {
+      await db.triggerGlobalLogout(user.email);
+    }
+    db.recordAccessLog('KARONY RUBIA', 'DATA_UPDATE', 'SUCCESS');
   }
 };

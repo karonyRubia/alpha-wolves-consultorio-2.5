@@ -18,20 +18,11 @@ const Layout: React.FC<LayoutProps> = ({ children, currentView, onViewChange, se
   const navItems = [
     { id: View.DASHBOARD, label: 'Início', desktopLabel: 'Visão Geral', icon: ICONS.Dashboard },
     { id: View.PATIENTS, label: 'Pacientes', desktopLabel: 'Pacientes', icon: ICONS.Patients },
-    { id: View.PRONTUARIOS, label: 'Clínica', desktopLabel: 'Prontuários', icon: (className: string) => <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg> },
+    { id: View.PRONTUARIOS, label: 'Clínica', desktopLabel: 'Prontuários', icon: ICONS.Stethoscope }, // Substituído logo de arquivo por estetoscópio
     { id: View.AGENDA, label: 'Agenda', desktopLabel: 'Agenda Médica', icon: ICONS.Agenda },
     { id: View.FINANCES, label: 'Caixa', desktopLabel: 'Financeiro', icon: ICONS.Finances },
     { id: View.SECRETARY, label: 'Rubia IA', desktopLabel: 'Rubia AI', icon: ICONS.Secretary },
   ];
-
-  const StethoscopeLogo = ({ className }: { className?: string }) => (
-    <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M7.5 3V6C7.5 8.48528 9.51472 10.5 12 10.5C14.4853 10.5 16.5 8.48528 16.5 6V3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-      <path d="M12 10.5V14.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-      <path d="M12 14.5C12 14.5 12 18 15 18H16.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-      <circle cx="18.5" cy="18" r="2.5" stroke="currentColor" strokeWidth="2"/>
-    </svg>
-  );
 
   return (
     <div className="flex flex-col md:flex-row h-screen overflow-hidden bg-slate-50">
@@ -45,8 +36,8 @@ const Layout: React.FC<LayoutProps> = ({ children, currentView, onViewChange, se
       {/* Desktop Sidebar */}
       <aside className="hidden md:flex w-64 alpha-gradient text-white flex-col shrink-0 relative overflow-hidden shadow-2xl z-10 transition-all duration-700">
         <div className="p-6 flex items-center gap-3 relative z-10">
-          <div className="w-12 h-12 bg-white rounded-xl shadow-lg flex items-center justify-center shrink-0 text-slate-800">
-            <StethoscopeLogo className="w-8 h-8" />
+          <div className="w-12 h-12 bg-white rounded-xl shadow-lg flex items-center justify-center shrink-0 text-blue-700">
+            {ICONS.Stethoscope("w-8 h-8")}
           </div>
           <div className="min-w-0">
             <h1 className="font-black text-lg leading-tight truncate tracking-tight">{globalConfig.appName}</h1>
@@ -104,7 +95,7 @@ const Layout: React.FC<LayoutProps> = ({ children, currentView, onViewChange, se
         <header className="flex md:hidden h-16 bg-white border-b px-4 items-center justify-between shrink-0 shadow-sm z-20">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 alpha-gradient rounded-lg flex items-center justify-center shadow-md text-white">
-              <StethoscopeLogo className="w-6 h-6" />
+              {ICONS.Stethoscope("w-6 h-6")}
             </div>
             <h1 className="font-black text-slate-800 tracking-tight text-xs leading-tight">{globalConfig.appName}</h1>
           </div>
