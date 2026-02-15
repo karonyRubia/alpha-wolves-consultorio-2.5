@@ -53,12 +53,34 @@ export const MOCK_FINANCES: FinancialRecord[] = [
 ];
 
 export const ICONS = {
-  Stethoscope: (className?: string) => (
-    <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M7.5 3V6C7.5 8.48528 9.51472 10.5 12 10.5C14.4853 10.5 16.5 8.48528 16.5 6V3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-      <path d="M12 10.5V14.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-      <path d="M12 14.5C12 14.5 12 18 15 18H16.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-      <circle cx="18.5" cy="18" r="2.5" stroke="currentColor" strokeWidth="2"/>
+  RubIALogo: (className?: string) => (
+    <svg className={className} viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="rubyGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#FB7185" />
+          <stop offset="50%" stopColor="#BE123C" />
+          <stop offset="100%" stopColor="#881337" />
+        </linearGradient>
+        <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+          <feDropShadow dx="0" dy="2" stdDeviation="3" floodColor="#881337" floodOpacity="0.5"/>
+        </filter>
+      </defs>
+
+      {/* Rubi Lapidado de Fundo */}
+      <path d="M50 5L85 20L95 50L50 95L5 50L15 20L50 5Z" fill="url(#rubyGrad)" filter="url(#shadow)"/>
+      <path d="M50 5L50 50M50 5L15 20M50 5L85 20M15 20L5 50L50 50L95 50L85 20M5 50L50 95L95 50" stroke="white" strokeWidth="0.5" strokeOpacity="0.3"/>
+
+      {/* Silhueta Secretária RubIA */}
+      <path d="M62 45C62 38.3726 56.6274 33 50 33C43.3726 33 38 38.3726 38 45C38 51.6274 43.3726 57 50 57C56.6274 57 62 51.6274 62 45Z" fill="white" fillOpacity="0.9"/>
+      <path d="M50 57C38.9543 57 30 65.9543 30 77V82H70V77C70 65.9543 61.0457 57 50 57Z" fill="white" fillOpacity="0.9"/>
+      
+      {/* Prontuário Médico (Clipboard) no colo da secretária */}
+      <rect x="42" y="62" width="16" height="20" rx="2" fill="white" stroke="#BE123C" strokeWidth="1.5"/>
+      <rect x="46" y="60" width="8" height="4" rx="1" fill="#881337"/>
+      <path d="M45 68H55M45 71H55M45 74H52" stroke="#BE123C" strokeWidth="1" strokeLinecap="round"/>
+      
+      {/* Detalhe Tecnológico (IA) */}
+      <circle cx="50" cy="45" r="25" stroke="white" strokeWidth="0.5" strokeDasharray="2 2" className="animate-spin" style={{transformOrigin: '50px 45px', animationDuration: '10s'}}/>
     </svg>
   ),
   Dashboard: (className?: string) => (
@@ -68,7 +90,7 @@ export const ICONS = {
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
   ),
   Agenda: (className?: string) => (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2-2v12a2 2 0 002 2z" /></svg>
   ),
   Finances: (className?: string) => (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
@@ -87,5 +109,8 @@ export const ICONS = {
   ),
   Send: (className?: string) => (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
-  )
+  ),
+  Stethoscope: (className?: string) => (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9.003 9.003 0 008.341-5.591 17.964 17.964 0 01-1.792-7.108 2 2 0 00-3.136-1.574l-1.446 1.084a2 2 0 01-2.401 0l-1.446-1.084a2 2 0 00-3.136 1.574 17.964 17.964 0 01-1.792 7.108A9.003 9.003 0 0012 21z" /></svg>
+  ),
 };

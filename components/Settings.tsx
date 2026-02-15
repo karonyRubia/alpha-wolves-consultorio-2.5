@@ -1,15 +1,16 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { AppSettings } from '../types';
+import { AppSettings, View } from '../types';
 import { db } from '../db/storage';
 
 interface SettingsProps {
   settings: AppSettings;
   onUpdate: (s: AppSettings) => void;
   onLogout: () => void;
+  onViewChange: (view: View) => void;
 }
 
-const Settings: React.FC<SettingsProps> = ({ settings, onUpdate, onLogout }) => {
+const Settings: React.FC<SettingsProps> = ({ settings, onUpdate, onLogout, onViewChange }) => {
   const [temp, setTemp] = useState(settings);
   const [saved, setSaved] = useState(false);
   const [storageUsage, setStorageUsage] = useState('0');
@@ -62,7 +63,7 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdate, onLogout }) => 
       <div className="bg-white rounded-[2.5rem] shadow-sm border border-slate-100 overflow-hidden">
         <div className="p-8 border-b alpha-gradient text-white flex justify-between items-center">
           <div>
-            <h3 className="text-xl font-black uppercase tracking-tight">Configurações Alpha</h3>
+            <h3 className="text-xl font-black uppercase tracking-tight">Configurações RubIA</h3>
             <p className="text-xs text-blue-100 font-bold uppercase tracking-widest mt-1">ID Sessão: {db.getCurrentUser()}</p>
           </div>
           <button 
@@ -116,7 +117,7 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdate, onLogout }) => 
               saved ? 'bg-emerald-500 text-white shadow-emerald-200' : 'bg-blue-900 text-white shadow-blue-200 hover:bg-blue-800'
             }`}
           >
-            {saved ? '✓ Dados Salvos com Sucesso' : 'Atualizar Perfil Alpha'}
+            {saved ? '✓ Dados Salvos com Sucesso' : 'Atualizar Perfil'}
           </button>
         </form>
 
@@ -138,7 +139,7 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdate, onLogout }) => 
                    <svg className="w-6 h-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" /></svg>
                 </div>
                 <div>
-                   <h5 className="text-[11px] font-black text-slate-800 uppercase tracking-widest">Backup de Segurança Alpha</h5>
+                   <h5 className="text-[11px] font-black text-slate-800 uppercase tracking-widest">Backup de Segurança</h5>
                    <p className="text-[10px] text-slate-400 font-bold leading-relaxed mt-1">
                       Para sua tranquilidade total, recomendamos exportar um backup mensal. Seus dados de pacientes e finanças são salvos localmente e criptografados pela sua sessão.
                    </p>
@@ -165,8 +166,24 @@ const Settings: React.FC<SettingsProps> = ({ settings, onUpdate, onLogout }) => 
           </div>
         </div>
 
+        {/* DEVELOPER AREA */}
+        <div className="p-8 bg-slate-900 border-t border-slate-800">
+           <div className="flex items-center justify-between">
+              <div>
+                 <h4 className="text-white font-black uppercase tracking-widest text-xs">Modo Desenvolvedor</h4>
+                 <p className="text-slate-400 text-[10px] font-bold mt-1">Acesse o código-fonte para deploy externo.</p>
+              </div>
+              <button 
+                 onClick={() => onViewChange(View.GET_CODE)}
+                 className="bg-blue-600 text-white px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-500 transition-all shadow-lg shadow-blue-900/50"
+              >
+                 Ver Código
+              </button>
+           </div>
+        </div>
+
         <div className="p-8 bg-white border-t border-slate-100 text-center">
-            <p className="text-[9px] text-slate-300 font-black uppercase tracking-[0.3em]">Alpha Wolves Ecossistema • Karony Rubia Intelligence</p>
+            <p className="text-[9px] text-slate-300 font-black uppercase tracking-[0.3em]">Ecossistema RubIA • Karony Rubia Intelligence</p>
             <p className="text-[10px] text-blue-600 font-bold mt-2">Suporte Direto: (18) 99136-2185</p>
         </div>
       </div>

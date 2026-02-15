@@ -2,6 +2,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Patient, HistoryEntry, PatientFile } from '../types';
 import { ICONS } from '../constants';
+import { secretaryService } from '../services/geminiService';
+import { db } from '../db/storage';
 
 interface MedicalRecordsProps {
   patients: Patient[];
@@ -19,6 +21,10 @@ const MedicalRecords: React.FC<MedicalRecordsProps> = ({ patients, onUpdate, onA
   const [newEvolution, setNewEvolution] = useState({ type: 'CONSULTA' as HistoryEntry['type'], content: '' });
   const fileInputRef = useRef<HTMLInputElement>(null);
   
+  // Estados para IA Clínica
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisResult, setAnalysisResult] = useState<string | null>(null);
+  
   const [newPatientForm, setNewPatientForm] = useState<Partial<Patient>>({
     name: '', email: '', phone: '', birthDate: '', notes: ''
   });
@@ -26,6 +32,7 @@ const MedicalRecords: React.FC<MedicalRecordsProps> = ({ patients, onUpdate, onA
   // Forçar abertura na anamnese ao trocar de paciente
   useEffect(() => {
     if (selectedPatient) setActiveTab('ANAMNESE');
+    setAnalysisResult(null); // Limpa análise anterior ao trocar paciente
   }, [selectedPatient?.id]);
 
   const filteredPatients = patients.filter(p => 
@@ -149,8 +156,69 @@ const MedicalRecords: React.FC<MedicalRecordsProps> = ({ patients, onUpdate, onA
     window.print();
   };
 
+  // Função para chamar a IA
+  const handleClinicalAnalysis = async () => {
+    if (!selectedPatient) return;
+    setIsAnalyzing(true);
+    setAnalysisResult(null);
+    const settings = db.getSettings();
+    const result = await secretaryService.analyzeClinicalCase(selectedPatient, settings.doctorName);
+    setAnalysisResult(result);
+    setIsAnalyzing(false);
+  };
+
   return (
-    <div className="h-full flex flex-col md:flex-row gap-6">
+    <div className="h-full flex flex-col md:flex-row gap-6 relative">
+      {/* Modal de Resultado da IA */}
+      {analysisResult && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-4 animate-in fade-in duration-300">
+          <div className="bg-white w-full max-w-3xl max-h-[85vh] rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col">
+            <div className="p-6 alpha-gradient text-white flex justify-between items-center shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center animate-pulse">
+                  <svg className="w-6 h-6 text-rose-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>
+                </div>
+                <div>
+                  <h3 className="text-lg font-black uppercase tracking-tight">RubIA Intelligence</h3>
+                  <p className="text-[10px] text-rose-200 uppercase font-bold tracking-widest">Análise Clínica Assistida</p>
+                </div>
+              </div>
+              <button onClick={() => setAnalysisResult(null)} className="p-2 hover:bg-white/10 rounded-full transition-colors">
+                <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-8 custom-scrollbar bg-slate-50">
+              <div className="prose prose-sm prose-slate max-w-none prose-headings:font-black prose-headings:text-slate-800 prose-p:text-slate-600 prose-li:text-slate-600 prose-strong:text-rose-900">
+                {analysisResult.split('\n').map((line, i) => (
+                   <p key={i} className={line.startsWith('**') ? 'font-black text-slate-800 mt-4 mb-2 uppercase text-xs tracking-widest' : 'text-sm mb-2 leading-relaxed'}>
+                      {line.replace(/\*\*/g, '')}
+                   </p>
+                ))}
+              </div>
+              <div className="mt-8 p-4 bg-amber-50 border border-amber-100 rounded-xl text-amber-800 text-xs font-bold text-center">
+                Nota: Esta análise é gerada por Inteligência Artificial e serve apenas como suporte à decisão. A responsabilidade clínica final é exclusivamente do profissional médico.
+              </div>
+            </div>
+            <div className="p-6 border-t bg-white flex justify-end gap-3 shrink-0">
+               <button onClick={() => setAnalysisResult(null)} className="px-6 py-3 bg-slate-100 text-slate-500 font-black uppercase text-xs rounded-xl hover:bg-slate-200 transition-colors">Fechar Análise</button>
+               <button 
+                onClick={() => {
+                   if (selectedPatient) {
+                     const newNotes = selectedPatient.notes + "\n\n--- ANÁLISE RUBIA IA ---\n" + analysisResult;
+                     handleUpdatePatientField('notes', newNotes);
+                     setAnalysisResult(null);
+                     alert('Análise anexada ao prontuário.');
+                   }
+                }}
+                className="px-6 py-3 alpha-gradient text-white font-black uppercase text-xs rounded-xl hover:brightness-110 transition-colors shadow-lg"
+               >
+                 Anexar ao Prontuário
+               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Sidebar de Prontuários */}
       <div className={`w-full md:w-80 flex flex-col gap-4 sidebar-records ${selectedPatient || isAdding ? 'hidden md:flex' : 'flex'}`}>
         <div className="flex gap-2">
@@ -158,7 +226,7 @@ const MedicalRecords: React.FC<MedicalRecordsProps> = ({ patients, onUpdate, onA
             <input 
               type="text"
               placeholder="Buscar prontuário..."
-              className="w-full bg-white border border-slate-100 rounded-2xl py-3 pl-10 pr-4 text-sm focus:ring-2 focus:ring-blue-900 shadow-sm"
+              className="w-full bg-white border border-slate-100 rounded-2xl py-3 pl-10 pr-4 text-sm focus:ring-2 focus:ring-rose-900 shadow-sm"
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
             />
@@ -166,7 +234,7 @@ const MedicalRecords: React.FC<MedicalRecordsProps> = ({ patients, onUpdate, onA
           </div>
           <button 
             onClick={() => { setIsAdding(true); setSelectedPatient(null); }}
-            className="bg-blue-900 text-white p-3 rounded-2xl shadow-lg hover:scale-105 transition-transform no-print"
+            className="alpha-gradient text-white p-3 rounded-2xl shadow-lg hover:scale-105 transition-transform no-print"
             title="Novo Paciente"
           >
             <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
@@ -180,8 +248,8 @@ const MedicalRecords: React.FC<MedicalRecordsProps> = ({ patients, onUpdate, onA
               onClick={() => { setSelectedPatient(p); setIsAdding(false); }}
               className={`w-full text-left p-4 rounded-2xl border transition-all ${
                 selectedPatient?.id === p.id 
-                ? 'bg-blue-900 border-blue-900 text-white shadow-lg scale-[1.02]' 
-                : 'bg-white border-slate-100 text-slate-600 hover:border-blue-200'
+                ? 'alpha-gradient border-rose-900 text-white shadow-lg scale-[1.02]' 
+                : 'bg-white border-slate-100 text-slate-600 hover:border-rose-200'
               }`}
             >
               <div className="flex items-center gap-3">
@@ -190,7 +258,7 @@ const MedicalRecords: React.FC<MedicalRecordsProps> = ({ patients, onUpdate, onA
                 </div>
                 <div className="min-w-0">
                   <p className="font-bold text-sm truncate">{p.name}</p>
-                  <p className={`text-[10px] ${selectedPatient?.id === p.id ? 'text-blue-200' : 'text-slate-400'}`}>
+                  <p className={`text-[10px] ${selectedPatient?.id === p.id ? 'text-rose-200' : 'text-slate-400'}`}>
                     ID: #{p.id.slice(-4)} • {p.history[0]?.date || 'Sem histórico'}
                   </p>
                 </div>
@@ -206,7 +274,7 @@ const MedicalRecords: React.FC<MedicalRecordsProps> = ({ patients, onUpdate, onA
           <div className="bg-white rounded-3xl shadow-sm border border-slate-100 h-full overflow-y-auto animate-in fade-in zoom-in duration-300">
             <div className="p-8 border-b bg-slate-50 flex justify-between items-center">
               <div>
-                <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight">Novo Prontuário Alpha</h3>
+                <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight">Novo Prontuário RubIA</h3>
                 <p className="text-xs text-slate-500 uppercase font-bold tracking-widest">Admissão Digital</p>
               </div>
               <button onClick={() => setIsAdding(false)} className="p-2 hover:bg-slate-200 rounded-xl transition-colors no-print">
@@ -218,12 +286,12 @@ const MedicalRecords: React.FC<MedicalRecordsProps> = ({ patients, onUpdate, onA
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="md:col-span-2">
                   <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Nome Completo</label>
-                  <input type="text" required className="w-full bg-slate-50 border border-slate-100 rounded-2xl p-4 text-sm focus:ring-2 focus:ring-blue-900" placeholder="Nome do paciente" value={newPatientForm.name} onChange={e => setNewPatientForm({...newPatientForm, name: e.target.value})} />
+                  <input type="text" required className="w-full bg-slate-50 border border-slate-100 rounded-2xl p-4 text-sm focus:ring-2 focus:ring-rose-900" placeholder="Nome do paciente" value={newPatientForm.name} onChange={e => setNewPatientForm({...newPatientForm, name: e.target.value})} />
                 </div>
-                <div><label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Data de Nascimento</label><input type="date" className="w-full bg-slate-50 border border-slate-100 rounded-2xl p-4 text-sm focus:ring-2 focus:ring-blue-900" value={newPatientForm.birthDate} onChange={e => setNewPatientForm({...newPatientForm, birthDate: e.target.value})} /></div>
-                <div><label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Telefone</label><input type="text" required className="w-full bg-slate-50 border border-slate-100 rounded-2xl p-4 text-sm focus:ring-2 focus:ring-blue-900" placeholder="(00) 00000-0000" value={newPatientForm.phone} onChange={e => setNewPatientForm({...newPatientForm, phone: e.target.value})} /></div>
+                <div><label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Data de Nascimento</label><input type="date" className="w-full bg-slate-50 border border-slate-100 rounded-2xl p-4 text-sm focus:ring-2 focus:ring-rose-900" value={newPatientForm.birthDate} onChange={e => setNewPatientForm({...newPatientForm, birthDate: e.target.value})} /></div>
+                <div><label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Telefone</label><input type="text" required className="w-full bg-slate-50 border border-slate-100 rounded-2xl p-4 text-sm focus:ring-2 focus:ring-rose-900" placeholder="(00) 00000-0000" value={newPatientForm.phone} onChange={e => setNewPatientForm({...newPatientForm, phone: e.target.value})} /></div>
               </div>
-              <button type="submit" className="w-full bg-blue-900 text-white py-4 rounded-2xl font-black uppercase tracking-widest text-xs shadow-xl hover:scale-[1.01] transition-all no-print">Criar e Abrir Prontuário</button>
+              <button type="submit" className="w-full alpha-gradient text-white py-4 rounded-2xl font-black uppercase tracking-widest text-xs shadow-xl hover:scale-[1.01] transition-all no-print">Criar e Abrir Prontuário</button>
             </form>
           </div>
         ) : selectedPatient ? (
@@ -233,9 +301,28 @@ const MedicalRecords: React.FC<MedicalRecordsProps> = ({ patients, onUpdate, onA
               <div className="flex items-center gap-4">
                 <button onClick={() => setSelectedPatient(null)} className="md:hidden p-2 bg-white/10 rounded-lg no-print"><svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg></button>
                 <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center text-xl font-black border border-white/20">{selectedPatient.name.charAt(0)}</div>
-                <div><h3 className="text-xl font-black">{selectedPatient.name}</h3><p className="text-[10px] text-blue-200 uppercase font-black tracking-widest">ID MÉDICO: #{selectedPatient.id.slice(-6)}</p></div>
+                <div><h3 className="text-xl font-black">{selectedPatient.name}</h3><p className="text-[10px] text-rose-200 uppercase font-black tracking-widest">ID MÉDICO: #{selectedPatient.id.slice(-6)}</p></div>
               </div>
-              <button onClick={handlePrint} className="md:flex items-center gap-2 px-4 py-2 bg-white/10 text-white border border-white/20 rounded-xl text-[10px] font-black uppercase hover:bg-white/20 shadow-lg no-print"><svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>Exportar PDF</button>
+              <div className="flex gap-2">
+                <button 
+                  onClick={handleClinicalAnalysis} 
+                  disabled={isAnalyzing}
+                  className="hidden md:flex items-center gap-2 px-4 py-2 bg-white/20 text-white border border-white/30 rounded-xl text-[10px] font-black uppercase hover:bg-white/30 transition-all shadow-lg no-print"
+                >
+                  {isAnalyzing ? (
+                    <>
+                      <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                      Analisando...
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>
+                      Análise RubIA
+                    </>
+                  )}
+                </button>
+                <button onClick={handlePrint} className="md:flex items-center gap-2 px-4 py-2 bg-white/10 text-white border border-white/20 rounded-xl text-[10px] font-black uppercase hover:bg-white/20 shadow-lg no-print"><svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>Exportar PDF</button>
+              </div>
             </div>
 
             {/* Abas */}
@@ -248,7 +335,7 @@ const MedicalRecords: React.FC<MedicalRecordsProps> = ({ patients, onUpdate, onA
                 <button 
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id as RecordTab)}
-                  className={`px-6 py-4 text-[10px] font-black uppercase tracking-widest transition-all border-b-2 whitespace-nowrap flex items-center gap-2 ${activeTab === tab.id ? 'border-blue-900 text-blue-900 bg-white shadow-inner' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
+                  className={`px-6 py-4 text-[10px] font-black uppercase tracking-widest transition-all border-b-2 whitespace-nowrap flex items-center gap-2 ${activeTab === tab.id ? 'border-rose-900 text-rose-900 bg-white shadow-inner' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
                 >
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={tab.icon} /></svg>
                   {tab.label}
@@ -257,53 +344,51 @@ const MedicalRecords: React.FC<MedicalRecordsProps> = ({ patients, onUpdate, onA
             </div>
 
             <div className="flex-1 overflow-y-auto custom-scrollbar bg-slate-100/50">
-              {/* ABA ANAMNESE - CORREÇÃO DE VISIBILIDADE */}
+              {/* ABA ANAMNESE */}
               {(activeTab === 'ANAMNESE' || window.matchMedia('print').matches) && (
                 <div className="p-6 space-y-6 animate-in fade-in duration-300">
                   {/* Dados Básicos */}
                   <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm no-print">
                     <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">DADOS DO PACIENTE (EDITÁVEIS)</h4>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                      <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 group focus-within:border-blue-500">
+                      <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 group focus-within:border-rose-500">
                         <label className="block text-[8px] font-black text-slate-400 uppercase mb-1">Telefone</label>
                         <input className="w-full text-xs font-bold text-slate-700 bg-transparent border-none p-0 focus:ring-0 outline-none" value={selectedPatient.phone} onChange={e => handleUpdatePatientField('phone', e.target.value)} />
                       </div>
-                      <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 group focus-within:border-blue-500">
+                      <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 group focus-within:border-rose-500">
                         <label className="block text-[8px] font-black text-slate-400 uppercase mb-1">E-mail</label>
                         <input className="w-full text-xs font-bold text-slate-700 bg-transparent border-none p-0 focus:ring-0 outline-none" value={selectedPatient.email} onChange={e => handleUpdatePatientField('email', e.target.value)} />
                       </div>
-                      <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 group focus-within:border-blue-500">
+                      <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 group focus-within:border-rose-500">
                         <label className="block text-[8px] font-black text-slate-400 uppercase mb-1">Nascimento</label>
                         <input type="date" className="w-full text-xs font-bold text-slate-700 bg-transparent border-none p-0 focus:ring-0 outline-none" value={selectedPatient.birthDate} onChange={e => handleUpdatePatientField('birthDate', e.target.value)} />
                       </div>
-                      <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 group focus-within:border-blue-500">
+                      <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 group focus-within:border-rose-500">
                         <label className="block text-[8px] font-black text-slate-400 uppercase mb-1">Última Visita</label>
                         <input type="date" className="w-full text-xs font-bold text-slate-700 bg-transparent border-none p-0 focus:ring-0 outline-none" value={selectedPatient.lastVisit || ''} onChange={e => handleUpdatePatientField('lastVisit', e.target.value)} />
                       </div>
                     </div>
                   </div>
 
-                  {/* FOLHA DE ANAMNESE - DESTAQUE TOTAL */}
+                  {/* FOLHA DE ANAMNESE */}
                   <div className="bg-white p-8 sm:p-12 rounded-[2.5rem] shadow-2xl border border-slate-200 relative">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 mb-8 no-print">
                       <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 bg-blue-900 rounded-2xl flex items-center justify-center text-white shadow-xl rotate-3">
-                          {/* Ícone de Estetoscópio no lugar do arquivo */}
-                          {ICONS.Stethoscope("w-6 h-6")}
+                        <div className="w-12 h-12 alpha-gradient rounded-2xl flex items-center justify-center text-white shadow-xl rotate-3">
+                          {ICONS.RubIALogo("w-7 h-7")}
                         </div>
                         <div>
                           <h4 className="text-lg font-black text-slate-900 uppercase tracking-tighter">Área de Anamnese</h4>
                           <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Preencha os dados clínicos abaixo</p>
                         </div>
                       </div>
-                      <button onClick={handleLoadTemplate} className="bg-blue-600 text-white px-8 py-4 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-blue-700 hover:scale-105 transition-all shadow-xl shadow-blue-100 flex items-center gap-2">
+                      <button onClick={handleLoadTemplate} className="alpha-gradient text-white px-8 py-4 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:brightness-110 hover:scale-105 transition-all shadow-xl shadow-rose-100 flex items-center gap-2">
                         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
                         CARREGAR MODELO PRONTO
                       </button>
                     </div>
 
                     <div className="relative">
-                      {/* Efeito de linhas estilo caderno (opcional) */}
                       <div className="absolute inset-0 pointer-events-none opacity-[0.03]" style={{backgroundImage: 'linear-gradient(#000 1px, transparent 1px)', backgroundSize: '100% 2.5rem'}}></div>
                       <textarea 
                         className="w-full min-h-[600px] bg-transparent border-none p-0 text-base focus:ring-0 resize-none font-medium text-slate-800 leading-[2.5rem] placeholder:text-slate-200"
@@ -316,7 +401,7 @@ const MedicalRecords: React.FC<MedicalRecordsProps> = ({ patients, onUpdate, onA
                 </div>
               )}
 
-              {/* OUTRAS ABAS (EVOLUCAO / ARQUIVOS) - MANTIDAS E REVISADAS */}
+              {/* OUTRAS ABAS (EVOLUCAO / ARQUIVOS) */}
               {activeTab === 'EVOLUCAO' && (
                 <div className="p-6 space-y-6 animate-in fade-in duration-300">
                   <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm space-y-6">
@@ -324,17 +409,17 @@ const MedicalRecords: React.FC<MedicalRecordsProps> = ({ patients, onUpdate, onA
                     <div className="bg-slate-50 p-6 rounded-3xl space-y-4 no-print border border-slate-100">
                       <div className="flex flex-wrap gap-2">
                         {(['CONSULTA', 'EXAME', 'PROCEDIMENTO', 'OBSERVAÇÃO'] as const).map(type => (
-                          <button key={type} onClick={() => setNewEvolution({...newEvolution, type})} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${newEvolution.type === type ? 'bg-blue-900 text-white shadow-lg' : 'bg-white text-slate-400 border border-slate-200'}`}>{type}</button>
+                          <button key={type} onClick={() => setNewEvolution({...newEvolution, type})} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${newEvolution.type === type ? 'alpha-gradient text-white shadow-lg' : 'bg-white text-slate-400 border border-slate-200'}`}>{type}</button>
                         ))}
                       </div>
-                      <textarea className="w-full bg-white border border-slate-200 rounded-2xl p-4 text-sm focus:ring-2 focus:ring-blue-900 h-32 resize-none" placeholder="O que mudou hoje?" value={newEvolution.content} onChange={(e) => setNewEvolution({...newEvolution, content: e.target.value})} />
-                      <button onClick={handleAddEvolution} className="w-full bg-blue-900 text-white py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-800 shadow-xl transition-all">Salvar Registro</button>
+                      <textarea className="w-full bg-white border border-slate-200 rounded-2xl p-4 text-sm focus:ring-2 focus:ring-rose-900 h-32 resize-none" placeholder="O que mudou hoje?" value={newEvolution.content} onChange={(e) => setNewEvolution({...newEvolution, content: e.target.value})} />
+                      <button onClick={handleAddEvolution} className="w-full alpha-gradient text-white py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:brightness-110 shadow-xl transition-all">Salvar Registro</button>
                     </div>
 
                     <div className="relative pl-6 border-l-2 border-slate-100 space-y-6">
                       {selectedPatient.history.map((entry) => (
                         <div key={entry.id} className="relative group">
-                          <div className="absolute -left-[31px] top-2 w-3 h-3 rounded-full bg-slate-200 border-2 border-white group-hover:bg-blue-600 transition-colors"></div>
+                          <div className="absolute -left-[31px] top-2 w-3 h-3 rounded-full bg-slate-200 border-2 border-white group-hover:bg-rose-600 transition-colors"></div>
                           <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all">
                             <div className="flex items-center justify-between mb-2">
                               <span className="text-[9px] font-black px-3 py-1 bg-slate-100 rounded-lg uppercase">{entry.type}</span>
@@ -360,7 +445,7 @@ const MedicalRecords: React.FC<MedicalRecordsProps> = ({ patients, onUpdate, onA
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
                       {selectedPatient.files?.map(file => (
                         <div key={file.id} className="group relative bg-slate-50 border border-slate-100 rounded-3xl overflow-hidden hover:shadow-xl transition-all h-48">
-                          {file.type.startsWith('image/') ? <img src={file.data} className="w-full h-full object-cover" /> : <div className="w-full h-full flex flex-col items-center justify-center bg-blue-50 text-blue-400 font-bold text-[8px]">PDF</div>}
+                          {file.type.startsWith('image/') ? <img src={file.data} className="w-full h-full object-cover" /> : <div className="w-full h-full flex flex-col items-center justify-center bg-rose-50 text-rose-400 font-bold text-[8px]">PDF</div>}
                           <div className="absolute inset-0 bg-slate-900/70 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
                             <a href={file.data} target="_blank" className="p-2 bg-white rounded-lg text-slate-900"><svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg></a>
                             <button onClick={() => removeFile(file.id)} className="p-2 bg-rose-500 rounded-lg text-white"><svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button>
@@ -375,12 +460,11 @@ const MedicalRecords: React.FC<MedicalRecordsProps> = ({ patients, onUpdate, onA
           </div>
         ) : (
           <div className="h-full bg-white rounded-3xl shadow-sm border border-slate-100 flex flex-col items-center justify-center p-12 text-center animate-in fade-in duration-500">
-            <div className="w-24 h-24 bg-slate-50 rounded-full flex items-center justify-center mb-6 text-blue-600/20">
-              {/* Ícone de Estetoscópio no lugar do arquivo vazio */}
-              {ICONS.Stethoscope("w-12 h-12")}
+            <div className="w-24 h-24 bg-rose-50 rounded-full flex items-center justify-center mb-6 text-rose-600/20">
+              {ICONS.RubIALogo("w-12 h-12")}
             </div>
             <h3 className="text-xl font-black text-slate-800 mb-2 uppercase tracking-tighter">Selecione um Paciente</h3>
-            <p className="text-sm text-slate-400 max-w-xs mx-auto font-medium">Use a barra lateral para navegar pelos prontuários ou clique em "+" para adicionar um novo registro Alpha.</p>
+            <p className="text-sm text-slate-400 max-w-xs mx-auto font-medium">Use a barra lateral para navegar pelos prontuários ou clique em "+" para adicionar um novo registro RubIA.</p>
           </div>
         )}
       </div>

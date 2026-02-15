@@ -97,7 +97,7 @@ const Agenda: React.FC<AgendaProps> = ({ appointments, patients, onAdd, onUpdate
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 px-2">
         <div>
           <h3 className="font-black text-slate-900 text-2xl tracking-tight">Agenda Médica</h3>
-          <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mt-1">Gestão de Fluxo Alpha</p>
+          <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mt-1">Gestão de Fluxo RubIA</p>
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
@@ -133,7 +133,7 @@ const Agenda: React.FC<AgendaProps> = ({ appointments, patients, onAdd, onUpdate
                {ICONS.WhatsApp("w-8 h-8")}
             </div>
             <div>
-              <h4 className="text-sm font-black text-emerald-900 uppercase tracking-widest">Lembretes Alpha Wolves</h4>
+              <h4 className="text-sm font-black text-emerald-900 uppercase tracking-widest">Lembretes RubIA</h4>
               <p className="text-xs text-emerald-700 font-bold">Existem {pendingReminders.length} pacientes para confirmar hoje.</p>
             </div>
           </div>
@@ -150,7 +150,7 @@ const Agenda: React.FC<AgendaProps> = ({ appointments, patients, onAdd, onUpdate
         <div className="bg-white p-8 rounded-[3rem] shadow-2xl border border-slate-100 animate-in fade-in zoom-in duration-300">
           <div className="mb-8 flex justify-between items-center">
             <h4 className="font-black text-slate-900 uppercase tracking-widest text-sm">
-              {editingId ? 'Editar Agendamento' : 'Novo Registro de Agenda Alpha'}
+              {editingId ? 'Editar Agendamento' : 'Novo Registro de Agenda'}
             </h4>
             <button onClick={resetForm} className="text-slate-300 hover:text-slate-500"><svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M6 18L18 6M6 6l12 12" strokeWidth={2.5}/></svg></button>
           </div>
@@ -202,7 +202,7 @@ const Agenda: React.FC<AgendaProps> = ({ appointments, patients, onAdd, onUpdate
             <thead className="bg-slate-50/50 text-[10px] font-black text-slate-400 uppercase tracking-widest">
               <tr>
                 <th className="px-8 py-6">Horário</th>
-                <th className="px-8 py-6">Paciente Alpha</th>
+                <th className="px-8 py-6">Paciente</th>
                 <th className="px-8 py-6">Status / Lembrete</th>
                 <th className="px-8 py-6 text-right">Controles</th>
               </tr>

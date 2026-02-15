@@ -114,17 +114,17 @@ export const db = {
     try {
       const data = localStorage.getItem(GLOBAL_CONFIG_KEY);
       return data ? JSON.parse(data) : {
-        appName: 'Alpha Wolves',
-        appSlogan: 'Prontuário Digital Inteligente',
-        primaryColor: '#0e7490',
-        accentColor: '#1e3a8a',
+        appName: 'RubIA',
+        appSlogan: 'Gestão de Clinica & Prontuário Médico',
+        primaryColor: '#be123c', // Rosa Rubi Profundo
+        accentColor: '#881337', // Vinho
         appCoverImage: 'https://images.unsplash.com/photo-1576091160550-2173dba999ef?auto=format&fit=crop&q=80&w=2070',
         globalNotice: '',
-        rubiaBaseInstruction: 'Você é a Rubia, IA do Ecossistema Alpha Wolves.',
+        rubiaBaseInstruction: 'Você é a Rubia, IA de Gestão Médica Avançada.',
         maintenanceMode: false
       };
     } catch {
-      return { appName: 'Alpha Wolves', appSlogan: 'Erro no carregamento', primaryColor: '#0e7490', accentColor: '#1e3a8a', appCoverImage: '', globalNotice: '', rubiaBaseInstruction: '', maintenanceMode: false };
+      return { appName: 'RubIA', appSlogan: 'Gestão de Clinica & Prontuário Médico', primaryColor: '#be123c', accentColor: '#881337', appCoverImage: '', globalNotice: '', rubiaBaseInstruction: '', maintenanceMode: false };
     }
   },
 
@@ -168,7 +168,7 @@ export const db = {
     if (user.blocked) return { success: false, error: 'ACESSO BLOQUEADO PELA ADMINISTRAÇÃO.' };
     
     const isAllowed = await db.isUserAllowedInCloud(normalizedEmail);
-    if (!isAllowed) return { success: false, error: 'Acesso suspenso na nuvem Alpha.' };
+    if (!isAllowed) return { success: false, error: 'Acesso suspenso na nuvem.' };
 
     localStorage.setItem(CURRENT_USER_KEY, normalizedEmail);
     db.recordAccessLog(normalizedEmail, 'LOGIN', 'SUCCESS');
@@ -230,7 +230,7 @@ export const db = {
     const email = db.getCurrentUser();
     if (!email) return `guest_${DATA_VERSION}_${subKey}`;
     const safeEmail = email.toLowerCase().trim().replace(/[^a-z0-9]/gi, '_');
-    return `alpha_${DATA_VERSION}_${safeEmail}_${subKey}`;
+    return `rubia_${DATA_VERSION}_${safeEmail}_${subKey}`;
   },
 
   safeSetItem: (key: string, value: string) => {
@@ -272,14 +272,14 @@ export const db = {
       
       const user = db.getCurrentUser();
       return { 
-        clinicName: 'Alpha Wolves', 
-        doctorName: db.isAdmin() ? 'KARONY RUBIA' : (user || 'Profissional Alpha'), 
-        professionalRole: 'Especialista', 
+        clinicName: 'Minha Clínica', 
+        doctorName: db.isAdmin() ? 'KARONY RUBIA' : (user || 'Doutor(a)'), 
+        professionalRole: 'Médico(a)', 
         profileImage: 'https://picsum.photos/id/64/80/80', 
-        monthlyGoal: 5000 
+        monthlyGoal: 10000 
       };
     } catch {
-       return { clinicName: 'Alpha Wolves', doctorName: 'Profissional Alpha', professionalRole: 'Especialista', profileImage: '', monthlyGoal: 5000 };
+       return { clinicName: 'Minha Clínica', doctorName: 'Doutor(a)', professionalRole: 'Médico(a)', profileImage: '', monthlyGoal: 10000 };
     }
   },
   saveSettings: (s: AppSettings) => db.safeSetItem(db.getUserKey('settings'), JSON.stringify(s)),
@@ -288,14 +288,14 @@ export const db = {
     const data: Record<string, string | null> = {};
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
-      if (key && (key.includes('alpha_') || key.includes('guest_') || key === AUTH_KEY)) {
+      if (key && (key.includes('rubia_') || key.includes('alpha_') || key.includes('guest_') || key === AUTH_KEY)) {
         data[key] = localStorage.getItem(key);
       }
     }
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url; a.download = `alpha_wolves_backup_${new Date().toISOString().split('T')[0]}.json`;
+    a.href = url; a.download = `rubia_backup_${new Date().toISOString().split('T')[0]}.json`;
     a.click(); URL.revokeObjectURL(url);
     db.recordAccessLog(db.getCurrentUser() || 'SISTEMA', 'DATA_UPDATE', 'SUCCESS');
   },

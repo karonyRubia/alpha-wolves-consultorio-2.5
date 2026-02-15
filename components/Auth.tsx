@@ -60,53 +60,60 @@ const Auth: React.FC<AuthProps> = ({ onLoginSuccess }) => {
         }
       }
     } catch (err) {
-      setError('Problema de conexão com a rede Alpha.');
+      setError('Problema de conexão com a rede RubIA.');
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-slate-900">
-      <div className="absolute inset-0 z-0 transition-all duration-1000 opacity-40" style={{ backgroundImage: `url(${globalConfig.appCoverImage})`, backgroundSize: 'cover', backgroundPosition: 'center', filter: 'blur(5px) brightness(0.4)' }}></div>
+    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-slate-950">
+      {/* Background with parallax effect */}
+      <div className="absolute inset-0 z-0 opacity-30 blur-sm scale-105" style={{ backgroundImage: `url(${globalConfig.appCoverImage})`, backgroundSize: 'cover', backgroundPosition: 'center' }}></div>
+      <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-slate-950 z-0"></div>
 
-      <div className="bg-white/95 backdrop-blur-3xl w-full max-w-[440px] rounded-[3.5rem] shadow-2xl overflow-hidden relative z-10 animate-in fade-in zoom-in duration-700">
-        <div className="p-10 text-center border-b border-slate-100">
-          {/* Logo de Estetoscópio em Azul no lugar do arquivo */}
-          <div className="w-20 h-20 bg-white rounded-3xl flex items-center justify-center mx-auto shadow-2xl mb-6 text-blue-700 border border-blue-50">
-            {ICONS.Stethoscope("w-12 h-12")}
+      <div className="bg-white/95 backdrop-blur-2xl w-full max-w-[460px] rounded-[4rem] shadow-[0_30px_60px_-15px_rgba(136,19,55,0.4)] overflow-hidden relative z-10 animate-in fade-in zoom-in duration-1000 border border-white/20">
+        <div className="p-10 text-center border-b border-slate-100 bg-slate-50/50">
+          <div className="w-32 h-32 mx-auto mb-6 relative logo-container animate-float">
+            <div className="absolute inset-0 rounded-full bg-rose-500/10 blur-2xl"></div>
+            {ICONS.RubIALogo("w-full h-full")}
           </div>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight uppercase">{isRegistering ? 'Cadastro Alpha' : globalConfig.appName}</h1>
-          <p className="text-[10px] uppercase tracking-[0.3em] font-black text-blue-600 mt-2">{globalConfig.appSlogan}</p>
+          <h1 className="text-4xl font-black text-slate-900 tracking-tighter uppercase alpha-text-gradient">{isRegistering ? 'Cadastro RubIA' : globalConfig.appName}</h1>
+          <p className="text-[10px] uppercase tracking-[0.4em] font-black text-rose-600 mt-3">{globalConfig.appSlogan}</p>
         </div>
 
-        <div className="p-10 space-y-6">
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <div className="space-y-1">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">Usuário Alpha</label>
-              <input type="text" required className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 text-sm font-bold focus:ring-4 focus:ring-blue-100 focus:border-blue-900 outline-none transition-all" value={email} onChange={e => setEmail(e.target.value)} />
+        <div className="p-10 space-y-8">
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">Usuário / Identificador</label>
+              <input type="text" required className="w-full bg-slate-50 border border-slate-200 rounded-[2rem] p-5 text-sm font-bold focus:ring-4 focus:ring-rose-100 focus:border-rose-900 outline-none transition-all shadow-inner" value={email} onChange={e => setEmail(e.target.value)} />
             </div>
-            <div className="space-y-1">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">Senha Mestra</label>
-              <input type="password" required className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 text-sm font-bold focus:ring-4 focus:ring-blue-100 focus:border-blue-900 outline-none transition-all" value={password} onChange={e => setPassword(e.target.value)} />
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">Senha de Acesso</label>
+              <input type="password" required className="w-full bg-slate-50 border border-slate-200 rounded-[2rem] p-5 text-sm font-bold focus:ring-4 focus:ring-rose-100 focus:border-rose-900 outline-none transition-all shadow-inner" value={password} onChange={e => setPassword(e.target.value)} />
             </div>
             {isRegistering && (
-              <div className="space-y-1 animate-in slide-in-from-top-4 duration-500">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">Confirmar Senha</label>
-                <input type="password" required className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 text-sm font-bold focus:ring-4 focus:ring-blue-100 focus:border-blue-900 outline-none transition-all" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} />
+              <div className="space-y-2 animate-in slide-in-from-top-4 duration-500">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">Repetir Senha</label>
+                <input type="password" required className="w-full bg-slate-50 border border-slate-200 rounded-[2rem] p-5 text-sm font-bold focus:ring-4 focus:ring-rose-100 focus:border-rose-900 outline-none transition-all shadow-inner" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} />
               </div>
             )}
             {error && <div className="bg-rose-50 border border-rose-100 p-4 rounded-2xl text-center"><p className="text-[10px] text-rose-600 font-black uppercase tracking-widest">{error}</p></div>}
-            <button type="submit" disabled={isLoading} className="w-full bg-blue-900 text-white py-5 rounded-3xl font-black uppercase tracking-widest text-[11px] shadow-xl hover:bg-blue-800 transition-all flex items-center justify-center">
-              {isLoading ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : (isRegistering ? 'Criar Acesso Alpha' : 'Entrar no Sistema')}
+            <button type="submit" disabled={isLoading} className="w-full alpha-gradient text-white py-6 rounded-[2.5rem] font-black uppercase tracking-widest text-[12px] shadow-2xl hover:brightness-110 active:scale-[0.98] transition-all flex items-center justify-center mt-4">
+              {isLoading ? <div className="w-6 h-6 border-3 border-white border-t-transparent rounded-full animate-spin"></div> : (isRegistering ? 'Criar Conta RubIA' : 'Entrar na Central RubIA')}
             </button>
           </form>
-          <div className="pt-4 text-center">
-            <button onClick={() => { setIsRegistering(!isRegistering); setError(''); }} className="text-[10px] font-black text-slate-400 hover:text-blue-900 uppercase tracking-widest transition-colors">
-              {isRegistering ? 'Já tenho conta' : 'Novo profissional? Registre-se'}
+          <div className="pt-2 text-center">
+            <button onClick={() => { setIsRegistering(!isRegistering); setError(''); }} className="text-[10px] font-black text-slate-400 hover:text-rose-900 uppercase tracking-[0.2em] transition-colors">
+              {isRegistering ? 'Voltar para o Login' : 'Novo na RubIA? Solicite Acesso'}
             </button>
           </div>
         </div>
+      </div>
+      
+      {/* Footer Branding */}
+      <div className="absolute bottom-8 text-white/20 text-[10px] font-black uppercase tracking-[0.5em] z-10">
+        Karony Rubia Intelligence Systems
       </div>
     </div>
   );

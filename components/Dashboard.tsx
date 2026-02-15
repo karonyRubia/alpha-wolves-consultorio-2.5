@@ -49,7 +49,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   }, [financialStats.incomes, settings.monthlyGoal]);
 
   const chartData = useMemo(() => [
-    { name: 'Receitas', valor: financialStats.incomes, color: '#06b6d4' },
+    { name: 'Receitas', valor: financialStats.incomes, color: '#be123c' },
     { name: 'Despesas', valor: financialStats.expenses, color: '#f43f5e' },
   ], [financialStats]);
 
@@ -72,7 +72,7 @@ const Dashboard: React.FC<DashboardProps> = ({
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
       ),
-      color: 'bg-cyan-50 text-cyan-600' 
+      color: 'bg-rose-50 text-rose-600' 
     },
     { 
       label: 'Agendados Hoje', 
@@ -105,11 +105,11 @@ const Dashboard: React.FC<DashboardProps> = ({
   return (
     <div className="space-y-6 md:space-y-8 animate-in fade-in duration-500 pb-10">
       <div className="px-2 flex items-center gap-4">
-        <div className="w-14 h-14 md:w-16 md:h-16 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-600 shadow-sm border border-blue-100 shrink-0">
-          {ICONS.Stethoscope("w-10 h-10")}
+        <div className="w-14 h-14 md:w-16 md:h-16 bg-rose-50 rounded-2xl flex items-center justify-center text-rose-600 shadow-sm border border-rose-100 shrink-0">
+          {ICONS.RubIALogo("w-10 h-10")}
         </div>
         <div>
-          <h2 className="text-2xl font-black text-slate-900 tracking-tight uppercase">Painel Alpha</h2>
+          <h2 className="text-2xl font-black text-slate-900 tracking-tight uppercase">Painel RubIA</h2>
           <p className="text-slate-500 text-xs font-bold uppercase tracking-widest">Seja bem-vindo(a), Dr(a) {settings.doctorName.split(' ')[0]}.</p>
         </div>
       </div>
@@ -134,7 +134,7 @@ const Dashboard: React.FC<DashboardProps> = ({
             <div className="flex items-center justify-between mb-8">
               <div>
                 <h4 className="font-black text-slate-800 text-sm uppercase tracking-widest">Fluxo Financeiro</h4>
-                <p className="text-[10px] text-slate-400 font-bold uppercase">Entradas vs Saídas Alpha</p>
+                <p className="text-[10px] text-slate-400 font-bold uppercase">Entradas vs Saídas</p>
               </div>
             </div>
             <div className="h-64 -ml-4">
@@ -157,23 +157,23 @@ const Dashboard: React.FC<DashboardProps> = ({
             </div>
           </div>
 
-          <div className="alpha-gradient rounded-[2.5rem] p-8 text-white shadow-xl shadow-blue-200 relative overflow-hidden group border border-blue-800/20">
+          <div className="alpha-gradient rounded-[2.5rem] p-8 text-white shadow-xl shadow-rose-200 relative overflow-hidden group border border-rose-800/20">
             <div className="relative z-10">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
                 <div>
-                  <h5 className="text-[10px] font-black uppercase tracking-[0.2em] text-cyan-200 mb-2">Meta Financeira Alpha</h5>
+                  <h5 className="text-[10px] font-black uppercase tracking-[0.2em] text-rose-200 mb-2">Meta Financeira</h5>
                   <div className="flex items-center gap-4">
                     <h4 className="text-4xl font-black tracking-tight">R$ {settings.monthlyGoal.toLocaleString('pt-BR')}</h4>
-                    <button onClick={() => setIsEditingGoal(true)} className="p-2 hover:bg-white/10 rounded-xl text-cyan-200 transition-all"><svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" strokeWidth={2}/></svg></button>
+                    <button onClick={() => setIsEditingGoal(true)} className="p-2 hover:bg-white/10 rounded-xl text-rose-200 transition-all"><svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" strokeWidth={2}/></svg></button>
                   </div>
                 </div>
                 <div className="text-left md:text-right">
-                  <p className="text-5xl font-black text-cyan-300 tracking-tighter">{progressPercent}%</p>
-                  <p className="text-[10px] font-black text-cyan-200 uppercase tracking-widest mt-1">Atingido</p>
+                  <p className="text-5xl font-black text-rose-300 tracking-tighter">{progressPercent}%</p>
+                  <p className="text-[10px] font-black text-rose-200 uppercase tracking-widest mt-1">Atingido</p>
                 </div>
               </div>
               <div className="w-full bg-black/20 h-4 rounded-full overflow-hidden p-1">
-                <div className="bg-gradient-to-r from-cyan-500 to-white h-full rounded-full transition-all duration-1000 ease-out" style={{ width: `${progressPercent}%` }}></div>
+                <div className="bg-gradient-to-r from-rose-500 to-white h-full rounded-full transition-all duration-1000 ease-out" style={{ width: `${progressPercent}%` }}></div>
               </div>
             </div>
           </div>
@@ -185,7 +185,7 @@ const Dashboard: React.FC<DashboardProps> = ({
             <div className="space-y-4">
               {scheduledToday.slice(0, 5).map((app) => (
                 <div key={app.id} className="flex items-center gap-4 p-4 rounded-2xl bg-slate-50 border border-slate-100 group transition-all">
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-xs ${app.reminderSent ? 'bg-emerald-100 text-emerald-600' : 'bg-blue-100 text-blue-600'}`}>
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-xs ${app.reminderSent ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'}`}>
                     {app.patientName.charAt(0)}
                   </div>
                   <div className="flex-1 min-w-0">
@@ -200,12 +200,12 @@ const Dashboard: React.FC<DashboardProps> = ({
               )}
             </div>
             
-            <div className="mt-8 p-6 bg-blue-50/50 rounded-3xl border border-blue-100 relative overflow-hidden">
-              <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-2 flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-blue-600 animate-pulse"></span>
+            <div className="mt-8 p-6 bg-rose-50/50 rounded-3xl border border-rose-100 relative overflow-hidden">
+              <p className="text-[10px] font-black text-rose-600 uppercase tracking-widest mb-2 flex items-center gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-rose-600 animate-pulse"></span>
                 Insight da Rubia IA
               </p>
-              <p className="text-xs text-blue-900 leading-relaxed font-bold">
+              <p className="text-xs text-rose-900 leading-relaxed font-bold">
                 {remindersPending > 0 
                   ? `Dr(a), temos ${remindersPending} lembretes pendentes para hoje. Vá até a Agenda para confirmar as consultas via WhatsApp.` 
                   : "Excelente! Todos os pacientes de hoje já foram confirmados via WhatsApp."}

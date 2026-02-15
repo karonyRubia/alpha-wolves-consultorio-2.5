@@ -36,7 +36,7 @@ const App: React.FC = () => {
     setIsDataLoaded(true);
   }, []);
 
-  // Monitoramento de Segurança Alpha wolves
+  // Monitoramento de Segurança
   useEffect(() => {
     if (!isLoggedIn || db.isAdmin()) return;
 
@@ -47,7 +47,7 @@ const App: React.FC = () => {
       try {
         const isAllowed = await db.isUserAllowedInCloud(email);
         if (!isAllowed) {
-          console.warn("Sessão revogada pelo servidor Alpha.");
+          console.warn("Sessão revogada pelo servidor.");
           db.logout();
         }
       } catch (e) {
@@ -94,15 +94,15 @@ const App: React.FC = () => {
   if (!isDataLoaded) {
     return (
       <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center text-white p-6">
-        <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-6"></div>
-        <h2 className="text-xl font-black uppercase tracking-widest animate-pulse">Alpha Wolves</h2>
-        <p className="text-xs text-slate-400 mt-2 font-bold uppercase tracking-tighter">Sincronizando Ambiente Clínico...</p>
+        <div className="w-16 h-16 border-4 border-rose-500 border-t-transparent rounded-full animate-spin mb-6"></div>
+        <h2 className="text-xl font-black uppercase tracking-widest animate-pulse">RubIA</h2>
+        <p className="text-xs text-slate-400 mt-2 font-bold uppercase tracking-tighter">Sincronizando Clínica Inteligente...</p>
       </div>
     );
   }
 
   const handleLogout = () => {
-    if (window.confirm('Encerrar sessão Alpha Wolves?')) db.logout();
+    if (window.confirm('Encerrar sessão RubIA?')) db.logout();
   };
 
   const renderContent = () => {
@@ -114,7 +114,7 @@ const App: React.FC = () => {
       case View.AGENDA: return <Agenda appointments={appointments} patients={patients} onAdd={a => setAppointments(prev => [...prev, {...a, id: `a_${Date.now()}`}])} onUpdate={u => setAppointments(prev => prev.map(a => a.id === u.id ? u : a))} onCancel={id => setAppointments(prev => prev.map(a => a.id === id ? {...a, status: 'CANCELLED'} : a))} />;
       case View.FINANCES: return <Finances records={finances} onAdd={f => setFinances(prev => [...prev, {...f, id: `f_${Date.now()}`}])} onUpdate={u => setFinances(prev => prev.map(f => f.id === u.id ? u : f))} onDelete={id => setFinances(prev => prev.filter(f => f.id !== id))} />;
       case View.SECRETARY: return <Secretary patients={patients} appointments={appointments} doctorName={settings.doctorName} />;
-      case View.SETTINGS: return <Settings settings={settings} onUpdate={setSettings} onLogout={handleLogout} />;
+      case View.SETTINGS: return <Settings settings={settings} onUpdate={setSettings} onLogout={handleLogout} onViewChange={setCurrentView} />;
       case View.ADMIN: return <AdminPanel />;
       case View.GET_CODE: return <GetCode />;
       default: return <Dashboard {...props} onUpdateSettings={setSettings} onUpdateAppointment={(a) => setAppointments(prev => prev.map(old => old.id === a.id ? a : old))} />;
@@ -129,7 +129,7 @@ const App: React.FC = () => {
               <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
            </div>
            <h2 className="text-3xl font-black mb-4 uppercase tracking-tighter">SISTEMA BLOQUEADO</h2>
-           <p className="max-w-md text-slate-400 font-bold mb-8 uppercase text-[11px] tracking-widest leading-relaxed">Manutenção programada pela Administração Alpha Wolves.</p>
+           <p className="max-w-md text-slate-400 font-bold mb-8 uppercase text-[11px] tracking-widest leading-relaxed">Manutenção programada pela Administração.</p>
            <button onClick={() => db.logout()} className="bg-white text-slate-900 px-8 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest">Sair</button>
         </div>
       )}

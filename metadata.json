@@ -1,6 +1,6 @@
 {
-  "name": "Alpha Wolves Consultório",
-  "description": "Sistema de gestão clínica de alto desempenho com monitoramento global em tempo real.",
+  "name": "RubIA - Gestão de Clinica",
+  "description": "Sistema de gestão clínica inteligente com prontuário eletrônico e assistente IA.",
   "requestFramePermissions": [
     "microphone",
     "camera",
